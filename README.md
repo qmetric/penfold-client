@@ -1,5 +1,7 @@
 # penfold-client
 
+[![Build Status](https://travis-ci.org/qmetric/penfold-client.png)](https://travis-ci.org/qmetric/penfold-client)
+
 Java client for [penfold](https://github.com/qmetric/penfold).
 
 ## Prerequisites:
