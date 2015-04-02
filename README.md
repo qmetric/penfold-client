@@ -69,5 +69,5 @@ new TaskConsumerBuilder()
 Penfold specific health checks can be appended to an existing com.codahale.metrics.health.HealthCheckRegistry.
 
 ```java
-final HealthCheckRegistry updated = new HealthCheckConfigurer("http://localhost",existingHealthCheckRegistry).configure()
+final HealthCheckRegistry updated = new HealthCheckConfigurer("http://localhost", existingHealthCheckRegistry).configure()
 ```
