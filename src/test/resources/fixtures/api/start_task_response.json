@@ -1,0 +1,29 @@
+{
+  "_links": {
+    "self": {
+      "href": "http://localhost/tasks/1"
+    },
+    "RescheduleTask": {
+      "href": "http://localhost/tasks/1/2"
+    },
+    "RequeueTask": {
+      "href": "http://localhost/tasks/1/2"
+    },
+    "UpdateTaskPayload": {
+      "href": "http://localhost/tasks/1/2"
+    }
+  },
+  "id": "1",
+  "version": 2,
+  "payload": {
+    "type": "type1"
+  },
+  "queue": "aggregator",
+  "status": "started",
+  "statusLastModified": "2014-03-15 10:35:05",
+  "triggerDate": "2015-04-15 10:35:05",
+  "created": "2014-03-15 10:35:05",
+  "attempts": 0
+}
+
+

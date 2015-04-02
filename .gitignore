@@ -1,17 +1,13 @@
-# git-ls-files --others --exclude-from=.git/info/exclude
-# Lines that start with '#' are comments.
-# For a project mostly in C, the following would be a good set of
-# exclude patterns (uncomment them if you want to use them):
-# *.[oa]
-# *~
-#
-# Ignore all hidden files, except this .gitignore file.
+*.class
+dist/*
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+.scala_dependencies
 .*
-!.sorting
 !.gitignore
 !.travis.yml
-!.mavenrc
-# Ignore all files with the following extension.
 *.log
 *.iws
 *.orig
@@ -19,10 +15,5 @@
 *.ipr
 .idea
 *.ids
-*.pyc
-# Ignore the build directory
 target
-/tmp
-
-# for js testing, we need to ignore node_modules
-node_modules
+*.jar

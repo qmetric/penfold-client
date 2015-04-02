@@ -1,0 +1,36 @@
+{
+  "_links": {
+    "self": {
+      "href": "http://localhost/tasks/1"
+    },
+    "RescheduleTask": {
+      "href": "http://localhost/tasks/1/2"
+    },
+    "RequeueTask": {
+      "href": "http://localhost/tasks/1/2"
+    },
+    "StartTask": {
+      "href": "http://localhost/tasks/1/2"
+    },
+    "UpdateTaskPayload": {
+      "href": "http://localhost/tasks/1/2"
+    },
+    "CloseTask": {
+      "href": "http://localhost/tasks/1/2"
+    },
+    "CancelTask": {
+      "href": "http://localhost/tasks/1/2"
+    }
+  },
+  "id": "1",
+  "version": 2,
+  "payload": {
+    "type": "type1"
+  },
+  "queue": "q1",
+  "status": "ready",
+  "created": "2014-02-25 12:00:00",
+  "attempts": 1,
+  "statusLastModified": "2014-02-26 13:00:00",
+  "triggerDate": "2014-04-15 10:35:05"
+}

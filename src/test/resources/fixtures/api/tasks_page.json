@@ -1,0 +1,38 @@
+{
+  "_links": {
+    "self": {
+      "href": "http://localhost/queues/q1/ready"
+    }
+  },
+  "_embedded": {
+    "tasks": [
+      {
+        "_links": {
+          "self": {
+            "href": "http://localhost/tasks/1"
+          },
+          "RescheduleTask": {
+            "href": "http://localhost/tasks/1/1"
+          },
+          "StartTask": {
+            "href": "http://localhost/tasks/1/1"
+          },
+          "UpdateTaskPayload": {
+            "href": "http://localhost/tasks/1/1"
+          }
+        },
+        "id": "1",
+        "version": 1,
+        "payload": {
+          "type": "type1"
+        },
+        "queue": "q1",
+        "status": "ready",
+        "created": "2014-02-25 12:00:00",
+        "attempts": 1,
+        "statusLastModified": "2014-02-26 13:00:00",
+        "triggerDate": "2014-04-15 10:35:05"
+      }
+    ]
+  }
+}
