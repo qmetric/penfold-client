@@ -14,12 +14,25 @@ public class TaskStoreServiceBuilder
 
     private Credentials credentials;
 
+    /**
+     * Penfold server url
+     *
+     * @param url Url
+     * @return Updated builder
+     */
     public TaskStoreServiceBuilder forServer(final String url)
     {
         this.url = url;
         return this;
     }
 
+    /**
+     * Penfold server credentials
+     *
+     * @param username Username
+     * @param password Password
+     * @return Updated builder
+     */
     public TaskStoreServiceBuilder withCredentials(final String username, final String password)
     {
         this.credentials = new Credentials(username, password);

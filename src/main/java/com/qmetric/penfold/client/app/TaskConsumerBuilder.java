@@ -33,36 +33,75 @@ public class TaskConsumerBuilder
 
     private Optional<Interval> retryDelay = Optional.empty();
 
+    /**
+     * Penfold server url
+     *
+     * @param url Url
+     * @return Updated builder
+     */
     public TaskConsumerBuilder fromServer(final String url)
     {
         this.url = url;
         return this;
     }
 
+    /**
+     * Penfold server credentials
+     *
+     * @param username Username
+     * @param password Password
+     * @return Updated builder
+     */
     public TaskConsumerBuilder withCredentials(final String username, final String password)
     {
         this.credentials = new Credentials(username, password);
         return this;
     }
 
+    /**
+     * Penfold queue to consume from.
+     *
+     * @param queue Queue id
+     * @return Updated builder
+     */
     public TaskConsumerBuilder fromQueue(final String queue)
     {
         this.queue = new QueueId(queue);
         return this;
     }
 
+    /**
+     * Custom function defining how to consume each received task.
+     *
+     * @param function Custom function
+     * @return Updated builder
+     */
     public TaskConsumerBuilder consumeWith(final ConsumerFunction function)
     {
         this.function = function;
         return this;
     }
 
+    /**
+     * How often to check queue for new entries to consume (default 1 minute).
+     *
+     * @param interval Polling interval.
+     * @param timeUnit Time unit
+     * @return Updated builder
+     */
     public TaskConsumerBuilder withPollingFrequency(final long interval, final TimeUnit timeUnit)
     {
         this.pollingFrequency = new Interval(interval, timeUnit);
         return this;
     }
 
+    /**
+     * How long to wait before retying after a task fails to be consumed (default no delay).
+     *
+     * @param interval Polling interval.
+     * @param timeUnit Time unit
+     * @return Updated builder
+     */
     public TaskConsumerBuilder delayBetweenEachRetryOf(final long interval, final TimeUnit timeUnit)
     {
         this.retryDelay = Optional.of(new Interval(interval, timeUnit));
