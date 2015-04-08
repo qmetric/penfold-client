@@ -1,11 +1,18 @@
 package com.qmetric.penfold.client.app;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 import com.qmetric.hal.reader.HalReader;
 import com.qmetric.hal.reader.HalResource;
+import com.qmetric.penfold.client.app.commands.filter.Filter;
+import com.qmetric.penfold.client.app.support.Credentials;
 import com.qmetric.penfold.client.app.support.QuerySerializer;
 import com.qmetric.penfold.client.domain.model.PageReference;
+import com.qmetric.penfold.client.domain.model.QueueId;
+import com.qmetric.penfold.client.domain.model.Task;
+import com.qmetric.penfold.client.domain.model.TaskId;
+import com.qmetric.penfold.client.domain.model.TaskStatus;
+import com.qmetric.penfold.client.domain.model.TasksPage;
+import com.qmetric.penfold.client.domain.services.PageAwareTaskQueryService;
 import com.qmetric.penfold.client.domain.services.QueueIterator;
 import com.qmetric.penfold.client.domain.services.TaskIterator;
 import com.qmetric.penfold.client.domain.services.TaskQueryService;
@@ -15,18 +22,12 @@ import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
 import com.sun.jersey.core.util.MultivaluedMapImpl;
 import com.theoryinpractise.halbuilder.api.Link;
 import com.theoryinpractise.halbuilder.api.RepresentationFactory;
-import com.qmetric.penfold.client.domain.services.PageAwareTaskQueryService;
-import com.qmetric.penfold.client.app.support.Credentials;
-import com.qmetric.penfold.client.app.commands.filter.Filter;
-import com.qmetric.penfold.client.domain.model.QueueId;
-import com.qmetric.penfold.client.domain.model.Task;
-import com.qmetric.penfold.client.domain.model.TaskId;
-import com.qmetric.penfold.client.domain.model.TaskStatus;
-import com.qmetric.penfold.client.domain.model.TasksPage;
 
 import javax.ws.rs.core.MultivaluedMap;
 
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -117,18 +118,25 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
         return new TasksPage(tasks, previousPageReference, nextPageReference);
     }
 
-    private void appendFilterParamToRequestIfPresent(final MultivaluedMap<String, String> queryParams, final Filter filter)
-    {
-        appendFiltersParamToRequestIfPresent(queryParams, ImmutableList.of(filter));
-    }
-
     private void appendFiltersParamToRequestIfPresent(final MultivaluedMap<String, String> queryParams, final List<Filter> filters)
     {
         final Optional<String> queryValueAsString = querySerializer.serialize(filters);
 
         if (queryValueAsString.isPresent())
         {
-            queryParams.add("q", queryValueAsString.get());
+            queryParams.add("q", encode(queryValueAsString));
+        }
+    }
+
+    private String encode(final Optional<String> queryValueAsString)
+    {
+        try
+        {
+            return URLEncoder.encode(queryValueAsString.get(), "UTF-8");
+        }
+        catch (UnsupportedEncodingException e)
+        {
+            throw new RuntimeException(e);
         }
     }
 
@@ -165,7 +173,7 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
     {
         final MultivaluedMap<String, String> queryParams = new MultivaluedMapImpl();
 
-        filters.stream().forEach(filter -> appendFilterParamToRequestIfPresent(queryParams, filter));
+        appendFiltersParamToRequestIfPresent(queryParams, filters);
 
         return queryParams;
     }

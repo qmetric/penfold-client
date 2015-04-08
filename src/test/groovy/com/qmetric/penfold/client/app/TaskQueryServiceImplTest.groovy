@@ -1,6 +1,5 @@
 package com.qmetric.penfold.client.app
 
-import com.qmetric.penfold.client.app.TaskQueryServiceImpl
 import com.sun.jersey.api.client.Client
 import com.sun.jersey.api.client.ClientResponse
 import com.sun.jersey.api.client.WebResource
@@ -69,7 +68,7 @@ class TaskQueryServiceImplTest extends Specification {
     {
         given:
         final filter = EqualsFilter.of("type", "type1")
-        appendQueryParam("""[{"op":"EQ","key":"${filter.key}","value":"${filter.value}"}]""")
+        appendQueryParam("%5B%7B%22op%22%3A%22EQ%22%2C%22key%22%3A%22${filter.key}%22%2C%22value%22%3A%22${filter.value}%22%7D%5D")
         setupTasksRetrievalResponse("http://localhost/queues/q1/ready", queryParams, "/fixtures/api/tasks_page.json")
 
         when:
@@ -95,7 +94,7 @@ class TaskQueryServiceImplTest extends Specification {
     {
         given:
         final filter = EqualsFilter.of("type", "type1")
-        appendQueryParam("""[{"op":"EQ","key":"${filter.key}","value":"${filter.value}"}]""")
+        appendQueryParam("%5B%7B%22op%22%3A%22EQ%22%2C%22key%22%3A%22${filter.key}%22%2C%22value%22%3A%22${filter.value}%22%7D%5D")
         setupTasksRetrievalResponse("http://localhost/tasks", queryParams, "/fixtures/api/tasks_page.json")
 
         when:
