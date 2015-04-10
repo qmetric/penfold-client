@@ -2,12 +2,12 @@
 
 [![Build Status](https://travis-ci.org/qmetric/penfold-client.png)](https://travis-ci.org/qmetric/penfold-client)
 
-Java client for [penfold](https://github.com/qmetric/penfold/tree/postgres).
+Java client for [penfold](https://github.com/qmetric/penfold/tree/v1).
 
 ## Prerequisites:
 
 * [JVM](https://www.java.com/en/download/) 8+
-* A running [penfold](https://github.com/qmetric/penfold/tree/postgres) server
+* A running [penfold](https://github.com/qmetric/penfold/tree/v1) server
 
 
 ## Usage
