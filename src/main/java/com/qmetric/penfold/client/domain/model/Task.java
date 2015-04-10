@@ -10,7 +10,7 @@ public class Task
 {
     public final TaskId id;
 
-    public final String version;
+    public final Integer version;
 
     public final QueueId queue;
 
@@ -22,7 +22,7 @@ public class Task
 
     public final Payload payload;
 
-    public Task(final TaskId id, final String version, final QueueId queue, final TaskStatus status, final LocalDateTime created, final int attempts,
+    public Task(final TaskId id, final Integer version, final QueueId queue, final TaskStatus status, final LocalDateTime created, final int attempts,
                 final Payload payload)
     {
         this.id = id;
@@ -58,7 +58,7 @@ public class Task
     {
         private TaskId id;
 
-        private String version;
+        private Integer version;
 
         private QueueId queue;
 
@@ -86,7 +86,7 @@ public class Task
             this.id = id;
         }
 
-        public Builder withVersion(final String version)
+        public Builder withVersion(final Integer version)
         {
             this.version = version;
             return this;

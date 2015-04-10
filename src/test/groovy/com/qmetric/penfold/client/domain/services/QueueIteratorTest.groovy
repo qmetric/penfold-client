@@ -40,7 +40,7 @@ class QueueIteratorTest extends Specification {
 
     private static def Task createTask(final String id)
     {
-        return new Task(new TaskId(id), "1", queue, status, LocalDateTime.of(2014, 2, 25, 12, 0, 0), 1, new Payload([type: "type1"]))
+        return new Task(new TaskId(id), 1, queue, status, LocalDateTime.of(2014, 2, 25, 12, 0, 0), 1, new Payload([type: "type1"]))
     }
 
     private def setupTasksPage(final Optional<PageReference> currentPage, final List<Task> currentPageTasks, final Optional<PageReference> nextPage)

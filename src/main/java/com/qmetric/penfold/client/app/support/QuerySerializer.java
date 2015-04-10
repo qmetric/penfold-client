@@ -13,7 +13,7 @@ import static org.apache.commons.collections.CollectionUtils.isNotEmpty;
 
 public class QuerySerializer
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(QuerySerializer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(QuerySerializer.class);
 
     private final ObjectMapper objectMapper;
 
@@ -37,7 +37,7 @@ public class QuerySerializer
         }
         catch (IOException e)
         {
-            LOGGER.error("invalid search filters in request", e);
+            LOG.error("invalid search filters in request", e);
             throw new IllegalArgumentException("invalid search filters");
         }
     }

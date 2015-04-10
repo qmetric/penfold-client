@@ -22,6 +22,8 @@ import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
 import com.sun.jersey.core.util.MultivaluedMapImpl;
 import com.theoryinpractise.halbuilder.api.Link;
 import com.theoryinpractise.halbuilder.api.RepresentationFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.core.MultivaluedMap;
 
@@ -38,6 +40,8 @@ import static java.lang.String.format;
 
 public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQueryService
 {
+    private static final Logger LOG = LoggerFactory.getLogger(TaskQueryServiceImpl.class);
+
     private static final String ACCEPT = RepresentationFactory.HAL_JSON;
 
     private static final String RETRIEVE_TASKS_BY_QUEUE_URI_TEMPLATE = "%s/queues/%s/%s";
@@ -136,6 +140,7 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
         }
         catch (UnsupportedEncodingException e)
         {
+            LOG.error("unable to encode query string param", e);
             throw new RuntimeException(e);
         }
     }

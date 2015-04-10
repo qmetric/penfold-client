@@ -213,6 +213,6 @@ class TaskStoreServiceImplTest extends Specification {
 
     private static Task createTask()
     {
-        return new Task(taskId, "2", queueId, TaskStatus.READY, created, attempts, payload)
+        return new Task(taskId, 2, queueId, TaskStatus.READY, created, attempts, payload)
     }
 }

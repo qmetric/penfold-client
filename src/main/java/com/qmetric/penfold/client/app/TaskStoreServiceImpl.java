@@ -36,7 +36,7 @@ import static java.lang.String.format;
 
 public class TaskStoreServiceImpl implements TaskStoreService
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TaskStoreServiceImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger(TaskStoreServiceImpl.class);
 
     private static final String ACCEPT = RepresentationFactory.HAL_JSON;
 
@@ -140,11 +140,11 @@ public class TaskStoreServiceImpl implements TaskStoreService
         return halReader.read(new InputStreamReader(response.getEntityInputStream()));
     }
 
-    private HalResource getTaskResourceWithExpectedVersion(final TaskId id, final String expectedVersion)
+    private HalResource getTaskResourceWithExpectedVersion(final TaskId id, final Integer expectedVersion)
     {
         final HalResource halResource = getTaskResource(id);
 
-        if (expectedVersion.equals(halResource.getValueAsString("version").orNull()))
+        if (expectedVersion.equals(Integer.valueOf(halResource.getValueAsString("version").orNull())))
         {
             return halResource;
         }
@@ -167,7 +167,7 @@ public class TaskStoreServiceImpl implements TaskStoreService
         }
         catch (final JsonProcessingException e)
         {
-            LOGGER.error(String.format("failed to parse command %s", object), e);
+            LOG.error(String.format("failed to parse command %s", object), e);
             throw new RuntimeException(e);
         }
     }

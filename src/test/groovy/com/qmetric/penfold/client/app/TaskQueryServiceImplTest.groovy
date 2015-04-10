@@ -22,7 +22,7 @@ import static com.qmetric.penfold.client.domain.model.TaskStatus.READY
 
 class TaskQueryServiceImplTest extends Specification {
 
-    public static final Task expectedTask = new Task(new TaskId("1"), "1", new QueueId("q1"), READY, LocalDateTime.of(2014, 2, 25, 12, 0, 0), 1, new Payload([type: "type1"]))
+    public static final Task expectedTask = new Task(new TaskId("1"), 1, new QueueId("q1"), READY, LocalDateTime.of(2014, 2, 25, 12, 0, 0), 1, new Payload([type: "type1"]))
 
     final currentDate = LocalDateTime.of(2014, 9, 1, 12, 0, 0, 0)
 
@@ -49,7 +49,7 @@ class TaskQueryServiceImplTest extends Specification {
         final task = queryRepository.find(id)
 
         then:
-        task == Optional.of(expectedTask.builder().withVersion("2").build())
+        task == Optional.of(expectedTask.builder().withVersion(2).build())
     }
 
     def "should query tasks by queue"()

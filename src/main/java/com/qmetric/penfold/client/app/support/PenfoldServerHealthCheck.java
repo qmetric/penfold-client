@@ -3,6 +3,8 @@ package com.qmetric.penfold.client.app.support;
 import com.codahale.metrics.health.HealthCheck;
 import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.ClientResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -15,6 +17,8 @@ import static java.net.HttpURLConnection.HTTP_OK;
 
 public class PenfoldServerHealthCheck extends HealthCheck
 {
+    private static final Logger LOG = LoggerFactory.getLogger(PenfoldServerHealthCheck.class);
+
     private final String serverUrl;
 
     private final Client client;
@@ -51,6 +55,7 @@ public class PenfoldServerHealthCheck extends HealthCheck
             }
             catch (URISyntaxException e)
             {
+                LOG.error("ping url invalid", e);
                 throw new RuntimeException(e);
             }
         }

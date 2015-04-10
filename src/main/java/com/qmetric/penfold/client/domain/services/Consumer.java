@@ -26,7 +26,7 @@ import static com.qmetric.penfold.client.domain.model.ResultType.SUCCESS;
 
 public class Consumer
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Consumer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Consumer.class);
 
     private static final Void VOID = null;
 
@@ -69,6 +69,8 @@ public class Consumer
 
     public void consume()
     {
+        LOG.info(String.format("consuming from %s queue", queue));
+
         final Iterator<Task> tasks = taskQueryService.find(queue, TaskStatus.READY, ImmutableList.of());
 
         while (tasks.hasNext())
@@ -78,6 +80,8 @@ public class Consumer
             final Result result = executeFunction(task);
 
             applyResultWithRetries(task.id, result);
+
+            LOG.info(String.format("task %s consumed from %s queue with result %s", task, queue, result));
         }
     }
 
@@ -109,7 +113,7 @@ public class Consumer
         }
         else
         {
-            LOGGER.info("task {} already closed or rescheduled - doing nothing", taskId);
+            LOG.info("task {} already closed or rescheduled - doing nothing", taskId);
         }
 
         return VOID;
@@ -145,7 +149,7 @@ public class Consumer
         }
         catch (final Exception e)
         {
-            LOGGER.error(String.format("task %s processed ok, but could not be closed/rescheduled", taskId), e);
+            LOG.error(String.format("task %s processed ok, but could not be closed/rescheduled", taskId), e);
             throw new RuntimeException(e);
         }
     }
@@ -158,6 +162,7 @@ public class Consumer
         }
         catch (Exception e)
         {
+            LOG.error(String.format("failed to consume task %s", task), e);
             return Result.retry(Optional.empty());
         }
     }
