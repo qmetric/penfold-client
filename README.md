@@ -7,6 +7,7 @@ Java client for [penfold](https://github.com/qmetric/penfold/tree/postgres).
 ## Prerequisites:
 
 * [JVM](https://www.java.com/en/download/) 8+
+* A running [penfold](https://github.com/qmetric/penfold/tree/postgres) server
 
 
 ## Usage
