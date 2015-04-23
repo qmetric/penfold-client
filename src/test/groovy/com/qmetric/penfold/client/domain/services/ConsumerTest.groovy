@@ -54,8 +54,8 @@ class ConsumerTest extends Specification {
     {
         given:
         taskQueryService.find(queueId, READY, []) >> [readyTask1, readyTask2].iterator()
-        consumerFunction.execute(startedTask1) >> Result.success()
-        consumerFunction.execute(startedTask2) >> Result.success()
+        consumerFunction.execute(startedTask1) >> Reply.success()
+        consumerFunction.execute(startedTask2) >> Reply.success()
         taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
         taskQueryService.find(startedTask2.id) >> Optional.of(startedTask2)
 
@@ -71,8 +71,8 @@ class ConsumerTest extends Specification {
     {
         given:
         taskQueryService.find(queueId, READY, []) >> [readyTask1, readyTask2].iterator()
-        consumerFunction.execute(startedTask1) >> Result.fail(failureReason)
-        consumerFunction.execute(startedTask2) >> Result.success()
+        consumerFunction.execute(startedTask1) >> Reply.fail(failureReason)
+        consumerFunction.execute(startedTask2) >> Reply.success()
         taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
         taskQueryService.find(startedTask2.id) >> Optional.of(startedTask2)
 
@@ -88,8 +88,8 @@ class ConsumerTest extends Specification {
     {
         given:
         taskQueryService.find(queueId, READY, []) >> [readyTask1, readyTask2].iterator()
-        consumerFunction.execute(startedTask1) >> Result.retry(failureReason)
-        consumerFunction.execute(startedTask2) >> Result.success()
+        consumerFunction.execute(startedTask1) >> Reply.retry(failureReason)
+        consumerFunction.execute(startedTask2) >> Reply.success()
         taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
         taskQueryService.find(startedTask2.id) >> Optional.of(startedTask2)
 
@@ -105,7 +105,7 @@ class ConsumerTest extends Specification {
     {
         given:
         taskQueryService.find(queueId, READY, []) >> [readyTask1].iterator()
-        consumerFunction.execute(startedTask1) >> Result.success()
+        consumerFunction.execute(startedTask1) >> Reply.success()
         taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1.builder().withStatus(CLOSED).build())
 
         when:
@@ -122,7 +122,7 @@ class ConsumerTest extends Specification {
         given:
         final consumer = new Consumer(queueId, consumerFunction, empty(), taskQueryService, taskStoreService, dateTimeSource)
         taskQueryService.find(queueId, READY, []) >> [readyTask1].iterator()
-        consumerFunction.execute(startedTask1) >> Result.retry(failureReason)
+        consumerFunction.execute(startedTask1) >> Reply.retry(failureReason)
         taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
 
         when:
@@ -138,7 +138,7 @@ class ConsumerTest extends Specification {
         final retryBuilder = RetryerBuilder.<Void> newBuilder().retryIfException().withStopStrategy(stopAfterAttempt(2))
         final consumer = new Consumer(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource, retryBuilder)
         taskQueryService.find(queueId, READY, []) >> [readyTask1].iterator()
-        consumerFunction.execute(startedTask1) >> Result.fail(failureReason)
+        consumerFunction.execute(startedTask1) >> Reply.fail(failureReason)
         taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
 
         when:

@@ -1,6 +1,6 @@
 package com.qmetric.penfold.client.domain.model;
 
-public enum ResultType
+public enum ReplyType
 {
     SUCCESS,
 

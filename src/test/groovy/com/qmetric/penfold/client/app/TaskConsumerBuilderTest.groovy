@@ -1,7 +1,6 @@
 package com.qmetric.penfold.client.app
 
-import com.qmetric.penfold.client.app.TaskConsumerBuilder
-import com.qmetric.penfold.client.domain.model.Result
+import com.qmetric.penfold.client.domain.model.Reply
 import com.qmetric.penfold.client.domain.model.Task
 import com.qmetric.penfold.client.domain.services.ConsumerFunction
 import spock.lang.Specification
@@ -21,7 +20,7 @@ class TaskConsumerBuilderTest extends Specification {
                 .delayBetweenEachRetryOf(15, MINUTES)
                 .consumeWith(new ConsumerFunction() {
             @Override
-            public Result execute(final Task task) {
+            public Reply execute(final Task task) {
                 // your implementation here
             }})
                 .build();

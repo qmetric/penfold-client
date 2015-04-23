@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.qmetric.penfold.client.app.support.Interval;
 import com.qmetric.penfold.client.app.support.LocalDateTimeSource;
 import com.qmetric.penfold.client.domain.model.QueueId;
-import com.qmetric.penfold.client.domain.model.Result;
+import com.qmetric.penfold.client.domain.model.Reply;
 import com.qmetric.penfold.client.domain.model.Task;
 import com.qmetric.penfold.client.domain.model.TaskId;
 import com.qmetric.penfold.client.domain.model.TaskStatus;
@@ -21,8 +21,8 @@ import static com.github.rholder.retry.WaitStrategies.fixedWait;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static com.qmetric.penfold.client.domain.model.CloseResultType.failure;
 import static com.qmetric.penfold.client.domain.model.CloseResultType.success;
-import static com.qmetric.penfold.client.domain.model.ResultType.FAIL;
-import static com.qmetric.penfold.client.domain.model.ResultType.SUCCESS;
+import static com.qmetric.penfold.client.domain.model.ReplyType.FAIL;
+import static com.qmetric.penfold.client.domain.model.ReplyType.SUCCESS;
 
 public class Consumer
 {
@@ -77,20 +77,20 @@ public class Consumer
         {
             final Task task = taskStoreService.start(tasks.next());
 
-            final Result result = executeFunction(task);
+            final Reply reply = executeFunction(task);
 
-            applyResultWithRetries(task.id, result);
+            applyReplyWithRetries(task.id, reply);
 
-            LOG.info(String.format("task %s consumed from %s queue with result %s", task, queue, result));
+            LOG.info(String.format("task %s consumed from %s queue with reply %s", task, queue, reply));
         }
     }
 
-    private void applyResultWithRetries(final TaskId taskId, final Result result)
+    private void applyReplyWithRetries(final TaskId taskId, final Reply reply)
     {
-        retryCodeBlock(taskId, () -> applyResult(taskId, result));
+        retryCodeBlock(taskId, () -> applyReply(taskId, reply));
     }
 
-    private Void applyResult(final TaskId taskId, final Result result)
+    private Void applyReply(final TaskId taskId, final Reply reply)
     {
         final Optional<Task> updatedVersionOfTask = taskQueryService.find(taskId);
 
@@ -98,17 +98,17 @@ public class Consumer
 
         if (isTaskStillStarted)
         {
-            if (result.type == SUCCESS)
+            if (reply.type == SUCCESS)
             {
                 success(updatedVersionOfTask);
             }
-            else if (result.type == FAIL)
+            else if (reply.type == FAIL)
             {
-                fail(updatedVersionOfTask, result.reason);
+                fail(updatedVersionOfTask, reply.reason);
             }
             else
             {
-                retry(updatedVersionOfTask, result.reason);
+                retry(updatedVersionOfTask, reply.reason);
             }
         }
         else
@@ -154,7 +154,7 @@ public class Consumer
         }
     }
 
-    private Result executeFunction(final Task task)
+    private Reply executeFunction(final Task task)
     {
         try
         {
@@ -163,7 +163,7 @@ public class Consumer
         catch (Exception e)
         {
             LOG.error(String.format("failed to consume task %s", task), e);
-            return Result.retry(Optional.empty());
+            return Reply.retry(Optional.empty());
         }
     }
 }

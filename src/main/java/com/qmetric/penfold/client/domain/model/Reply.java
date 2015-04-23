@@ -6,31 +6,46 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 
 import java.util.Optional;
 
-public class Result
+public class Reply
 {
-    public final ResultType type;
+    public final ReplyType type;
 
     public final Optional<String> reason;
 
-    private Result(final ResultType type, final Optional<String> reason)
+    private Reply(final ReplyType type, final Optional<String> reason)
     {
         this.type = type;
         this.reason = reason;
     }
 
-    public static Result success()
+    public static Reply success()
     {
-        return new Result(ResultType.SUCCESS, Optional.empty());
+        return new Reply(ReplyType.SUCCESS, Optional.empty());
     }
 
-    public static Result fail(final Optional<String> reason)
+    public static Reply fail(final Optional<String> reason)
     {
-        return new Result(ResultType.FAIL, reason);
+        return new Reply(ReplyType.FAIL, reason);
     }
 
-    public static Result retry(final Optional<String> reason)
+    public static Reply retry(final Optional<String> reason)
     {
-        return new Result(ResultType.RETRY, reason);
+        return new Reply(ReplyType.RETRY, reason);
+    }
+
+    public boolean isSucessful()
+    {
+        return type == ReplyType.SUCCESS;
+    }
+
+    public boolean isFailure()
+    {
+        return type == ReplyType.FAIL;
+    }
+
+    public boolean isRetry()
+    {
+        return type == ReplyType.RETRY;
     }
 
     @Override public int hashCode()

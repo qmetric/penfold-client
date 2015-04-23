@@ -57,7 +57,7 @@ new TaskConsumerBuilder()
     .fromQueue("testqueue")
     .delayBetweenEachRetryOf(15, TimeUnit.MINUTES)
     .consumeWith(new ConsumerFunction() {
-        @Override public Result execute(final Task task) {
+        @Override public Reply execute(final Task task) {
             // your implementation here
         }})
     .build()
