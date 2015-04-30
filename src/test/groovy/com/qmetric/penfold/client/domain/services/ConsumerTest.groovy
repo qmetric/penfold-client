@@ -19,7 +19,7 @@ class ConsumerTest extends Specification {
 
     static final retryDelay = new Interval(2, HOURS)
 
-    static final retryDelayInSeconds = 120
+    static final retryDelayInSeconds = 7200
 
     static final failureReason = Optional.of("err")
 

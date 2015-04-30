@@ -22,7 +22,7 @@ public class Interval
 
     public long seconds()
     {
-        return unit.toMinutes(duration);
+        return unit.toSeconds(duration);
     }
 
     @Override
