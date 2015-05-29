@@ -1,17 +1,17 @@
 package com.qmetric.penfold.client.app;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.qmetric.penfold.client.app.support.ClientFactory;
 import com.qmetric.penfold.client.app.support.Credentials;
 import com.qmetric.penfold.client.app.support.Interval;
 import com.qmetric.penfold.client.app.support.LocalDateTimeSource;
 import com.qmetric.penfold.client.app.support.ObjectMapperFactory;
+import com.qmetric.penfold.client.domain.model.QueueId;
 import com.qmetric.penfold.client.domain.services.Consumer;
 import com.qmetric.penfold.client.domain.services.ConsumerFunction;
 import com.qmetric.penfold.client.domain.services.TaskConsumer;
 import com.qmetric.penfold.client.domain.services.TaskQueryService;
 import com.qmetric.penfold.client.domain.services.TaskStoreService;
-import com.sun.jersey.api.client.Client;
-import com.qmetric.penfold.client.domain.model.QueueId;
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -112,11 +112,10 @@ public class TaskConsumerBuilder
     {
         checkValid();
 
-        final Client client = Client.create();
         final ObjectMapper objectMapper = ObjectMapperFactory.create();
 
-        final TaskQueryService taskQueryService = new TaskQueryServiceImpl(url, credentials, client, objectMapper);
-        final TaskStoreService taskStoreService = new TaskStoreServiceImpl(url, credentials, client, objectMapper);
+        final TaskQueryService taskQueryService = new TaskQueryServiceImpl(url, credentials, ClientFactory.create(), objectMapper);
+        final TaskStoreService taskStoreService = new TaskStoreServiceImpl(url, credentials, ClientFactory.create(), objectMapper);
 
         final LocalDateTimeSource dateTimeSource = new LocalDateTimeSource();
 

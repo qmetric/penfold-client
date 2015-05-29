@@ -1,10 +1,11 @@
 package com.qmetric.penfold.client.app.support;
 
 import com.codahale.metrics.health.HealthCheck;
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.ClientResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.ws.rs.client.Client;
+import javax.ws.rs.core.Response;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -31,7 +32,7 @@ public class PenfoldServerHealthCheck extends HealthCheck
 
     @Override protected Result check() throws Exception
     {
-        final ClientResponse clientResponse = client.resource(serverUrl).accept(HAL_JSON).get(ClientResponse.class);
+        final Response clientResponse = client.target(serverUrl).request(HAL_JSON).get();
 
         if (clientResponse.getStatus() == HTTP_OK)
         {

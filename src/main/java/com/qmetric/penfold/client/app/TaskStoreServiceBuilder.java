@@ -1,10 +1,12 @@
 package com.qmetric.penfold.client.app;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sun.jersey.api.client.Client;
+import com.qmetric.penfold.client.app.support.ClientFactory;
 import com.qmetric.penfold.client.app.support.Credentials;
 import com.qmetric.penfold.client.app.support.ObjectMapperFactory;
 import com.qmetric.penfold.client.domain.services.TaskStoreService;
+
+import javax.ws.rs.client.Client;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -43,7 +45,7 @@ public class TaskStoreServiceBuilder
     {
         checkValid();
 
-        final Client client = Client.create();
+        final Client client = ClientFactory.create();
 
         final ObjectMapper objectMapper = ObjectMapperFactory.create();
 

@@ -16,18 +16,19 @@ import com.qmetric.penfold.client.domain.services.PageAwareTaskQueryService;
 import com.qmetric.penfold.client.domain.services.QueueIterator;
 import com.qmetric.penfold.client.domain.services.TaskIterator;
 import com.qmetric.penfold.client.domain.services.TaskQueryService;
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.ClientResponse;
-import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
-import com.sun.jersey.core.util.MultivaluedMapImpl;
 import com.theoryinpractise.halbuilder.api.Link;
 import com.theoryinpractise.halbuilder.api.RepresentationFactory;
+import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.Response;
 
-import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.Iterator;
@@ -70,7 +71,7 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
     {
         this.baseUri = baseUri;
         this.client = client;
-        this.client.addFilter(new HTTPBasicAuthFilter(credentials.username, credentials.password));
+        this.client.register(HttpAuthenticationFeature.basic(credentials.username, credentials.password));
         this.halReader = new HalReader(objectMapper);
         this.querySerializer = new QuerySerializer(objectMapper);
     }
@@ -176,7 +177,7 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
 
     private MultivaluedMap<String, String> queryString(final List<Filter> filters)
     {
-        final MultivaluedMap<String, String> queryParams = new MultivaluedMapImpl();
+        final MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<>();
 
         appendFiltersParamToRequestIfPresent(queryParams, filters);
 
@@ -185,18 +186,19 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
 
     private HalResource get(final String url, final MultivaluedMap<String, String> params)
     {
-        final ClientResponse response = client.resource(url) //
-                .queryParams(params).accept(ACCEPT) //
-                .get(ClientResponse.class);
+        final WebTarget target = client.target(url);
+        params.entrySet().forEach(e -> target.queryParam(e.getKey(), e.getValue().toArray()));
+
+        final Response response = target.request(ACCEPT).get();
 
         checkResponseStatus(response, 200);
 
-        return halReader.read(new InputStreamReader(response.getEntityInputStream()));
+        return halReader.read(new StringReader(response.readEntity(String.class)));
     }
 
     private Optional<HalResource> getTaskResource(final TaskId taskId)
     {
-        final ClientResponse response = client.resource(format(RETRIEVE_TASK_URI_TEMPLATE, baseUri, taskId.value)).accept(ACCEPT).get(ClientResponse.class);
+        final Response response = client.target(format(RETRIEVE_TASK_URI_TEMPLATE, baseUri, taskId.value)).request(ACCEPT).get();
         if (response.getStatus() == 404)
         {
             return Optional.empty();
@@ -205,11 +207,11 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
         {
             checkResponseStatus(response, 200);
 
-            return Optional.of(halReader.read(new InputStreamReader(response.getEntityInputStream())));
+            return Optional.of(halReader.read(new StringReader(response.readEntity(String.class))));
         }
     }
 
-    private void checkResponseStatus(final ClientResponse response, final int status)
+    private void checkResponseStatus(final Response response, final int status)
     {
         checkState(response.getStatus() == status, "unexpected response %s", response.getStatus());
     }

@@ -3,13 +3,15 @@ package com.qmetric.penfold.client.app
 import com.qmetric.penfold.client.app.support.Credentials
 import com.qmetric.penfold.client.app.support.ObjectMapperFactory
 import com.qmetric.penfold.client.domain.model.*
-import com.sun.jersey.api.client.Client
-import com.sun.jersey.api.client.ClientResponse
-import com.sun.jersey.api.client.WebResource
 import com.theoryinpractise.halbuilder.api.RepresentationFactory
 import groovy.json.JsonSlurper
 import spock.lang.Specification
 
+import javax.ws.rs.client.Client
+import javax.ws.rs.client.Entity
+import javax.ws.rs.client.Invocation
+import javax.ws.rs.client.WebTarget
+import javax.ws.rs.core.Response
 import java.time.LocalDateTime
 
 import static java.util.Optional.empty
@@ -30,9 +32,9 @@ class TaskStoreServiceImplTest extends Specification {
 
     final client = Mock(Client)
 
-    final resourceBuilder = Mock(WebResource.Builder)
+    final builder = Mock(Invocation.Builder)
 
-    final webResource = Mock(WebResource)
+    final webTarget = Mock(WebTarget)
 
     final store = new TaskStoreServiceImpl("http://localhost", credentials(), client, ObjectMapperFactory.create())
 
@@ -40,14 +42,15 @@ class TaskStoreServiceImplTest extends Specification {
     {
         given:
         final response = response(201, "/fixtures/api/create_task_response.json")
-        final resourceBuilder = setupRequestBuilder("http://localhost/tasks", CommandType.CreateTask)
+        final builder = setupRequestBuilder("http://localhost/tasks")
 
         when:
         store.create(new NewTask(queueId, payload, empty()))
 
         then:
-        1 * resourceBuilder.post(ClientResponse.class, _) >> { _, json ->
-            assertExpectedJson(json as String, "/fixtures/api/command/create_task_command.json")
+        1 * builder.post(_ as Entity) >> { entity ->
+            assertExpectedJson((entity.get(0) as Entity).entity as String, "/fixtures/api/command/create_task_command.json")
+            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.CreateTask)
             response
         }
     }
@@ -56,14 +59,15 @@ class TaskStoreServiceImplTest extends Specification {
     {
         given:
         final response = response(201, "/fixtures/api/create_future_task_response.json")
-        final resourceBuilder = setupRequestBuilder("http://localhost/tasks", CommandType.CreateFutureTask)
+        final builder = setupRequestBuilder("http://localhost/tasks")
 
         when:
         store.create(new NewTask(queueId, payload, Optional.of(triggerDate)))
 
         then:
-        1 * resourceBuilder.post(ClientResponse.class, _) >> { _, json ->
-            assertExpectedJson(json as String, "/fixtures/api/command/create_future_task_command.json")
+        1 * builder.post(_ as Entity) >> { entity ->
+            assertExpectedJson((entity.get(0) as Entity).entity as String, "/fixtures/api/command/create_future_task_command.json")
+            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.CreateFutureTask)
             response
         }
     }
@@ -72,15 +76,16 @@ class TaskStoreServiceImplTest extends Specification {
     {
         given:
         setupTaskRetrievalResponse("/fixtures/api/task.json")
-        setupTaskCommand("http://localhost/tasks/1/2", CommandType.StartTask)
+        setupTaskCommand("http://localhost/tasks/1/2")
         final postResponse = response(200, "/fixtures/api/start_task_response.json")
 
         when:
         store.start(createTask())
 
         then:
-        1 * resourceBuilder.post(ClientResponse.class, _) >> { _, json ->
-            assertExpectedJson(json as String, "/fixtures/api/command/start_task_command.json")
+        1 * builder.post(_ as Entity) >> { entity ->
+            assertExpectedJson((entity.get(0) as Entity).entity as String, "/fixtures/api/command/start_task_command.json")
+            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.StartTask)
             postResponse
         }
     }
@@ -89,15 +94,16 @@ class TaskStoreServiceImplTest extends Specification {
     {
         given:
         setupTaskRetrievalResponse("/fixtures/api/task.json")
-        setupTaskCommand("http://localhost/tasks/1/2", CommandType.RequeueTask)
+        setupTaskCommand("http://localhost/tasks/1/2")
         final postResponse = response(200, "/fixtures/api/requeue_task_response.json")
 
         when:
         store.requeue(createTask(), Optional.of("reason1"))
 
         then:
-        1 * resourceBuilder.post(ClientResponse.class, _) >> { _, json ->
-            assertExpectedJson(json as String, "/fixtures/api/command/requeue_task_command.json")
+        1 * builder.post(_ as Entity) >> { entity ->
+            assertExpectedJson((entity.get(0) as Entity).entity as String, "/fixtures/api/command/requeue_task_command.json")
+            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.RequeueTask)
             postResponse
         }
     }
@@ -106,15 +112,16 @@ class TaskStoreServiceImplTest extends Specification {
     {
         given:
         setupTaskRetrievalResponse("/fixtures/api/task.json")
-        setupTaskCommand("http://localhost/tasks/1/2", CommandType.RescheduleTask)
+        setupTaskCommand("http://localhost/tasks/1/2")
         final postResponse = response(200, "/fixtures/api/reschedule_task_response.json")
 
         when:
         store.reschedule(createTask(), triggerDate, Optional.of("reason1"))
 
         then:
-        1 * resourceBuilder.post(ClientResponse.class, _) >> { _, json ->
-            assertExpectedJson(json as String, "/fixtures/api/command/reschedule_task_command.json")
+        1 * builder.post(_ as Entity) >> { entity ->
+            assertExpectedJson((entity.get(0) as Entity).getEntity() as String, "/fixtures/api/command/reschedule_task_command.json")
+            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.RescheduleTask)
             postResponse
         }
     }
@@ -123,15 +130,16 @@ class TaskStoreServiceImplTest extends Specification {
     {
         given:
         setupTaskRetrievalResponse("/fixtures/api/task.json")
-        setupTaskCommand("http://localhost/tasks/1/2", CommandType.CloseTask)
+        setupTaskCommand("http://localhost/tasks/1/2")
         final postResponse = response(200, "/fixtures/api/close_task_response.json")
 
         when:
         store.close(createTask(), Optional.of(CloseResultType.success), Optional.of("reason1"))
 
         then:
-        1 * resourceBuilder.post(ClientResponse.class, _) >> { _, json ->
-            assertExpectedJson(json as String, "/fixtures/api/command/close_task_command.json")
+        1 * builder.post(_ as Entity) >> { entity ->
+            assertExpectedJson((entity.get(0) as Entity).entity as String, "/fixtures/api/command/close_task_command.json")
+            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.CloseTask)
             postResponse
         }
     }
@@ -140,28 +148,29 @@ class TaskStoreServiceImplTest extends Specification {
     {
         given:
         setupTaskRetrievalResponse("/fixtures/api/task.json")
-        setupTaskCommand("http://localhost/tasks/1/2", CommandType.CancelTask)
+        setupTaskCommand("http://localhost/tasks/1/2")
         final postResponse = response(200, "/fixtures/api/cancel_task_response.json")
 
         when:
         store.cancel(createTask(), Optional.of("reason1"))
 
         then:
-        1 * resourceBuilder.post(ClientResponse.class, _) >> { _, json ->
-            assertExpectedJson(json as String, "/fixtures/api/command/cancel_task_command.json")
+        1 * builder.post(_ as Entity) >> { entity ->
+            assertExpectedJson((entity.get(0) as Entity).entity as String, "/fixtures/api/command/cancel_task_command.json")
+            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.CancelTask)
             postResponse
         }
     }
 
     private def setupTaskRetrievalResponse(final String json, final int status = 200)
     {
-        final ClientResponse response = response(status)
-        response.getEntityInputStream() >> this.getClass().getResource(json).newInputStream()
-        final resourceBuilder = Mock(WebResource.Builder)
-        final webResource = Mock(WebResource)
-        client.resource("http://localhost/tasks/${taskId}") >> webResource
-        webResource.accept(RepresentationFactory.HAL_JSON) >> resourceBuilder
-        resourceBuilder.get(ClientResponse.class) >> response
+        final Response response = response(status)
+        response.readEntity(String.class) >> this.getClass().getResource(json).text
+        final builder = Mock(Invocation.Builder)
+        final webTarget = Mock(WebTarget)
+        client.target("http://localhost/tasks/${taskId}") >> webTarget
+        webTarget.request(RepresentationFactory.HAL_JSON) >> builder
+        builder.get() >> response
         response
     }
 
@@ -170,19 +179,18 @@ class TaskStoreServiceImplTest extends Specification {
         assert new JsonSlurper().parseText(json as String) == new JsonSlurper().parseText(this.getClass().getResource(expectedJson).text)
     }
 
-    private def setupRequestBuilder(final String url, final CommandType commandType)
+    private def setupRequestBuilder(final String url)
     {
-        final resourceBuilder = Mock(WebResource.Builder)
-        final webResource = Mock(WebResource)
-        client.resource(url) >> webResource
-        webResource.accept(RepresentationFactory.HAL_JSON) >> resourceBuilder
-        resourceBuilder.type(contentType(commandType)) >> resourceBuilder
-        resourceBuilder
+        final builder = Mock(Invocation.Builder)
+        final webTarget = Mock(WebTarget)
+        client.target(url) >> webTarget
+        webTarget.request(RepresentationFactory.HAL_JSON) >> builder
+        builder
     }
 
     private def response(final statusCode)
     {
-        final response = Mock(ClientResponse)
+        final response = Mock(Response)
         response.getStatus() >> statusCode
         response
     }
@@ -190,15 +198,14 @@ class TaskStoreServiceImplTest extends Specification {
     private def response(final statusCode, final String jsonPath)
     {
         final response = response(statusCode)
-        response.getEntityInputStream() >> this.getClass().getResource(jsonPath).newInputStream()
+        response.readEntity(String.class) >> this.getClass().getResource(jsonPath).text
         response
     }
 
-    private def setupTaskCommand(final String url, final CommandType commandType)
+    private def setupTaskCommand(final String url)
     {
-        client.resource(url) >> webResource
-        webResource.accept(RepresentationFactory.HAL_JSON) >> resourceBuilder
-        resourceBuilder.type(contentType(commandType)) >> resourceBuilder
+        client.target(url) >> webTarget
+        webTarget.request(RepresentationFactory.HAL_JSON) >> builder
     }
 
     private static def contentType(final CommandType commandType)

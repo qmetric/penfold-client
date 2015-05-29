@@ -1,10 +1,4 @@
 package com.qmetric.penfold.client.app
-
-import com.sun.jersey.api.client.Client
-import com.sun.jersey.api.client.ClientResponse
-import com.sun.jersey.api.client.WebResource
-import com.sun.jersey.core.util.MultivaluedMapImpl
-import com.theoryinpractise.halbuilder.api.RepresentationFactory
 import com.qmetric.penfold.client.app.commands.filter.EqualsFilter
 import com.qmetric.penfold.client.app.support.Credentials
 import com.qmetric.penfold.client.app.support.LocalDateTimeSource
@@ -13,9 +7,15 @@ import com.qmetric.penfold.client.domain.model.Payload
 import com.qmetric.penfold.client.domain.model.QueueId
 import com.qmetric.penfold.client.domain.model.Task
 import com.qmetric.penfold.client.domain.model.TaskId
+import com.theoryinpractise.halbuilder.api.RepresentationFactory
 import spock.lang.Specification
 
+import javax.ws.rs.client.Client
+import javax.ws.rs.client.Invocation
+import javax.ws.rs.client.WebTarget
+import javax.ws.rs.core.MultivaluedHashMap
 import javax.ws.rs.core.MultivaluedMap
+import javax.ws.rs.core.Response
 import java.time.LocalDateTime
 
 import static com.qmetric.penfold.client.domain.model.TaskStatus.READY
@@ -26,7 +26,7 @@ class TaskQueryServiceImplTest extends Specification {
 
     final currentDate = LocalDateTime.of(2014, 9, 1, 12, 0, 0, 0)
 
-    final MultivaluedMap<String, String> queryParams = new MultivaluedMapImpl()
+    final MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<>()
 
     final client = Mock(Client)
 
@@ -106,19 +106,19 @@ class TaskQueryServiceImplTest extends Specification {
 
     private def setupTasksRetrievalResponse(final String url, final MultivaluedMap<String, String> queryParams, final String expectedJson)
     {
-        final ClientResponse response = expectedResponse(expectedJson)
-        final resourceBuilder = Mock(WebResource.Builder)
-        final webResource = Mock(WebResource)
-        client.resource(url) >> webResource
-        webResource.queryParams(queryParams) >> webResource
-        webResource.accept(RepresentationFactory.HAL_JSON) >> resourceBuilder
-        resourceBuilder.get(ClientResponse.class) >> response
+        final Response response = expectedResponse(expectedJson)
+        final builder = Mock(Invocation.Builder)
+        final webTarget = Mock(WebTarget)
+        client.target(url) >> webTarget
+        queryParams.entrySet().each {e -> webTarget.queryParam(e.key, e.value.toArray()) >> webTarget}
+        webTarget.request(RepresentationFactory.HAL_JSON) >> builder
+        builder.get() >> response
     }
 
-    private ClientResponse expectedResponse(final String jsonPath)
+    private Response expectedResponse(final String jsonPath)
     {
-        final response = Mock(ClientResponse)
-        response.getEntityInputStream() >> this.getClass().getResource(jsonPath).newInputStream()
+        final response = Mock(Response)
+        response.readEntity(String.class) >> this.getClass().getResource(jsonPath).text
         response.getStatus() >> 200
         response
     }

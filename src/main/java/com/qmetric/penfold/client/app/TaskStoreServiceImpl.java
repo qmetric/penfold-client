@@ -5,29 +5,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qmetric.hal.reader.HalReader;
 import com.qmetric.hal.reader.HalResource;
 import com.qmetric.penfold.client.app.commands.CancelTaskCommand;
-import com.qmetric.penfold.client.app.commands.RequeueTaskCommand;
-import com.qmetric.penfold.client.domain.model.CloseResultType;
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.ClientResponse;
-import com.sun.jersey.api.client.WebResource;
-import com.sun.jersey.api.client.filter.HTTPBasicAuthFilter;
-import com.theoryinpractise.halbuilder.api.Link;
-import com.theoryinpractise.halbuilder.api.RepresentationFactory;
-import com.qmetric.penfold.client.domain.services.TaskStoreService;
-import com.qmetric.penfold.client.app.support.Credentials;
 import com.qmetric.penfold.client.app.commands.CloseTaskCommand;
 import com.qmetric.penfold.client.app.commands.CreateTaskCommand;
+import com.qmetric.penfold.client.app.commands.RequeueTaskCommand;
 import com.qmetric.penfold.client.app.commands.RescheduleTaskCommand;
 import com.qmetric.penfold.client.app.commands.StartTaskCommand;
+import com.qmetric.penfold.client.app.support.Credentials;
 import com.qmetric.penfold.client.domain.exceptions.ConflictException;
+import com.qmetric.penfold.client.domain.model.CloseResultType;
 import com.qmetric.penfold.client.domain.model.CommandType;
 import com.qmetric.penfold.client.domain.model.NewTask;
 import com.qmetric.penfold.client.domain.model.Task;
 import com.qmetric.penfold.client.domain.model.TaskId;
+import com.qmetric.penfold.client.domain.services.TaskStoreService;
+import com.theoryinpractise.halbuilder.api.Link;
+import com.theoryinpractise.halbuilder.api.RepresentationFactory;
+import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStreamReader;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
+
+import java.io.StringReader;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -61,7 +62,7 @@ public class TaskStoreServiceImpl implements TaskStoreService
         this.baseUri = baseUri;
         this.client = client;
         this.objectMapper = objectMapper;
-        this.client.addFilter(new HTTPBasicAuthFilter(credentials.username, credentials.password));
+        this.client.register(HttpAuthenticationFeature.basic(credentials.username, credentials.password));
         this.halReader = new HalReader(objectMapper);
     }
 
@@ -71,9 +72,8 @@ public class TaskStoreServiceImpl implements TaskStoreService
 
         final CommandType commandType = task.triggerDate.isPresent() ? CommandType.CreateFutureTask : CommandType.CreateTask;
 
-        final WebResource.Builder webResource = client.resource(format(CREATE_TASK_URI_TEMPLATE, baseUri)).accept(ACCEPT).type(contentTypeHeaderFor(commandType));
+        final Response response = client.target(format(CREATE_TASK_URI_TEMPLATE, baseUri)).request(ACCEPT).post(Entity.entity(taskJson, contentTypeHeaderFor(commandType)));
 
-        final ClientResponse response = webResource.post(ClientResponse.class, taskJson);
         checkResponseStatus(response, 201);
 
         return taskFromResponse(response);
@@ -113,8 +113,8 @@ public class TaskStoreServiceImpl implements TaskStoreService
         if (updateTaskLink.isPresent())
         {
             final String json = toJson(command);
-            final WebResource.Builder webResource = client.resource(updateTaskLink.get().getHref()).accept(ACCEPT).type(contentTypeHeaderFor(commandType));
-            final ClientResponse response = webResource.post(ClientResponse.class, format(json, task.id));
+            final Response response = client.target(updateTaskLink.get().getHref()).request(ACCEPT).post(Entity.entity(format(json, task.id), contentTypeHeaderFor(commandType)));
+
             final int responseStatus = response.getStatus();
 
             if (responseStatus == 409)
@@ -134,10 +134,10 @@ public class TaskStoreServiceImpl implements TaskStoreService
 
     private HalResource getTaskResource(final TaskId taskId)
     {
-        final ClientResponse response = client.resource(format(RETRIEVE_TASK_URI_TEMPLATE, baseUri, taskId)).accept(ACCEPT).get(ClientResponse.class);
+        final Response response = client.target(format(RETRIEVE_TASK_URI_TEMPLATE, baseUri, taskId)).request(ACCEPT).get();
         checkResponseStatus(response, 200);
 
-        return halReader.read(new InputStreamReader(response.getEntityInputStream()));
+        return halReader.read(new StringReader(response.readEntity(String.class)));
     }
 
     private HalResource getTaskResourceWithExpectedVersion(final TaskId id, final Integer expectedVersion)
@@ -154,7 +154,7 @@ public class TaskStoreServiceImpl implements TaskStoreService
         }
     }
 
-    private void checkResponseStatus(final ClientResponse response, final int status)
+    private void checkResponseStatus(final Response response, final int status)
     {
         checkState(response.getStatus() == status, "Unexpected response %s", response.getStatus());
     }
@@ -172,9 +172,9 @@ public class TaskStoreServiceImpl implements TaskStoreService
         }
     }
 
-    private Task taskFromResponse(final ClientResponse response)
+    private Task taskFromResponse(final Response response)
     {
-        final HalResource taskHalResource = halReader.read(new InputStreamReader(response.getEntityInputStream()));
+        final HalResource taskHalResource = halReader.read(new StringReader(response.readEntity(String.class)));
 
         return resourceMapper.getTaskFromResource(taskHalResource);
     }
