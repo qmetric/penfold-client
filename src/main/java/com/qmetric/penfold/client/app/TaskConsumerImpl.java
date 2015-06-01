@@ -48,7 +48,7 @@ public class TaskConsumerImpl implements TaskConsumer
         {
             consumer.consume();
         }
-        catch (final Exception e)
+        catch (final Exception | Error e)
         {
             LOG.error("failed to consume", e);
         }
