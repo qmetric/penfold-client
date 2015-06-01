@@ -87,11 +87,15 @@ public class Consumer
 
     private void applyReplyWithRetries(final TaskId taskId, final Reply reply)
     {
+        LOG.info("apply consumer reply {} for task {}", reply, taskId);
         retryCodeBlock(taskId, () -> applyReply(taskId, reply));
+        LOG.info("applied consumer reply {} for task {}", reply, taskId);
     }
 
     private Void applyReply(final TaskId taskId, final Reply reply)
     {
+        LOG.info(String.format("applying consumer reply for task %s %s", taskId, reply));
+
         final Optional<Task> updatedVersionOfTask = taskQueryService.find(taskId);
 
         final boolean isTaskStillStarted = updatedVersionOfTask.isPresent() && updatedVersionOfTask.get().status.isStarted();
@@ -100,15 +104,15 @@ public class Consumer
         {
             if (reply.type == SUCCESS)
             {
-                success(updatedVersionOfTask);
+                success(updatedVersionOfTask.get());
             }
             else if (reply.type == FAIL)
             {
-                fail(updatedVersionOfTask, reply.reason);
+                fail(updatedVersionOfTask.get(), reply.reason);
             }
             else
             {
-                retry(updatedVersionOfTask, reply.reason);
+                retry(updatedVersionOfTask.get(), reply.reason);
             }
         }
         else
@@ -119,26 +123,32 @@ public class Consumer
         return VOID;
     }
 
-    private void success(final Optional<Task> updatedVersionOfTask)
+    private void success(final Task updatedVersionOfTask)
     {
-        taskStoreService.close(updatedVersionOfTask.get(), Optional.of(success), Optional.empty());
+        LOG.info("closing task {} on success", updatedVersionOfTask.id);
+        taskStoreService.close(updatedVersionOfTask, Optional.of(success), Optional.empty());
+        LOG.info("closed task {} on success", updatedVersionOfTask.id);
     }
 
-    private void fail(final Optional<Task> updatedVersionOfTask, final Optional<String> reason)
+    private void fail(final Task updatedVersionOfTask, final Optional<String> reason)
     {
-        taskStoreService.close(updatedVersionOfTask.get(), Optional.of(failure), reason);
+        LOG.info("closing task {} on failure", updatedVersionOfTask.id);
+        taskStoreService.close(updatedVersionOfTask, Optional.of(failure), reason);
+        LOG.info("closed task {} on failure", updatedVersionOfTask.id);
     }
 
-    private void retry(final Optional<Task> updatedVersionOfTask, final Optional<String> reason)
+    private void retry(final Task updatedVersionOfTask, final Optional<String> reason)
     {
+        LOG.info("rescheduling/requeuing task {} on failure", updatedVersionOfTask.id);
         if (retryDelay.isPresent())
         {
-            taskStoreService.reschedule(updatedVersionOfTask.get(), dateTimeSource.now().plusSeconds(retryDelay.get().seconds()), reason);
+            taskStoreService.reschedule(updatedVersionOfTask, dateTimeSource.now().plusSeconds(retryDelay.get().seconds()), reason);
         }
         else
         {
-            taskStoreService.requeue(updatedVersionOfTask.get(), reason);
+            taskStoreService.requeue(updatedVersionOfTask, reason);
         }
+        LOG.info("rescheduled/requeued task {} on failure", updatedVersionOfTask.id);
     }
 
     private void retryCodeBlock(final TaskId taskId, final Callable<Void> callable)
