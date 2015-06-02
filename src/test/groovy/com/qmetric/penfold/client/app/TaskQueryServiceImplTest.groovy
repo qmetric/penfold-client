@@ -1,4 +1,5 @@
 package com.qmetric.penfold.client.app
+
 import com.qmetric.penfold.client.app.commands.filter.EqualsFilter
 import com.qmetric.penfold.client.app.support.Credentials
 import com.qmetric.penfold.client.app.support.LocalDateTimeSource
@@ -109,9 +110,10 @@ class TaskQueryServiceImplTest extends Specification {
         final Response response = expectedResponse(expectedJson)
         final builder = Mock(Invocation.Builder)
         final webTarget = Mock(WebTarget)
+        final webTargetWithQueryParams = Mock(WebTarget)
         client.target(url) >> webTarget
-        queryParams.entrySet().each {e -> webTarget.queryParam(e.key, e.value.toArray()) >> webTarget}
-        webTarget.request(RepresentationFactory.HAL_JSON) >> builder
+        queryParams.entrySet().each {e -> webTarget.queryParam(e.key, e.value.toArray()) >> webTargetWithQueryParams}
+        (queryParams.isEmpty() ? webTarget: webTargetWithQueryParams).request(RepresentationFactory.HAL_JSON) >> builder
         builder.get() >> response
     }
 

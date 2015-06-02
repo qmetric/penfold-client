@@ -186,8 +186,10 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
 
     private HalResource get(final String url, final MultivaluedMap<String, String> params)
     {
-        final WebTarget target = client.target(url);
-        params.entrySet().forEach(e -> target.queryParam(e.getKey(), e.getValue().toArray()));
+        final WebTarget target = params.entrySet().stream()
+                .reduce(client.target(url),
+                        (previous, updated) -> previous.queryParam(updated.getKey(), updated.getValue().toArray()),
+                        (previous, updated) -> updated);
 
         final Response response = target.request(ACCEPT).get();
 
