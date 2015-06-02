@@ -1,23 +1,22 @@
 package com.qmetric.penfold.client.domain.services
 
 import com.github.rholder.retry.RetryerBuilder
-import com.qmetric.penfold.client.app.support.Interval
 import com.qmetric.penfold.client.app.support.LocalDateTimeSource
 import com.qmetric.penfold.client.domain.model.*
 import spock.lang.Specification
 
+import java.time.Duration
 import java.time.LocalDateTime
 
 import static com.github.rholder.retry.StopStrategies.stopAfterAttempt
 import static com.qmetric.penfold.client.domain.model.TaskStatus.*
 import static java.util.Optional.empty
-import static java.util.concurrent.TimeUnit.HOURS
 
-class ConsumerTest extends Specification {
+class ConsumerImplTest extends Specification {
 
     static final queueId = new QueueId("q1")
 
-    static final retryDelay = new Interval(2, HOURS)
+    static final retryDelay = Duration.ofHours(2)
 
     static final retryDelayInSeconds = 7200
 
@@ -41,7 +40,7 @@ class ConsumerTest extends Specification {
 
     def now = LocalDateTime.now()
 
-    final consumer = new Consumer(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource)
+    final consumer = new ConsumerImpl(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource)
 
     def setup()
     {
@@ -120,7 +119,7 @@ class ConsumerTest extends Specification {
     def "should requeue task on consume failure when delayed retry applicable"()
     {
         given:
-        final consumer = new Consumer(queueId, consumerFunction, empty(), taskQueryService, taskStoreService, dateTimeSource)
+        final consumer = new ConsumerImpl(queueId, consumerFunction, empty(), taskQueryService, taskStoreService, dateTimeSource)
         taskQueryService.find(queueId, READY, []) >> [readyTask1].iterator()
         consumerFunction.execute(startedTask1) >> Reply.retry(failureReason)
         taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
@@ -136,7 +135,7 @@ class ConsumerTest extends Specification {
     {
         given:
         final retryBuilder = RetryerBuilder.<Void> newBuilder().retryIfException().withStopStrategy(stopAfterAttempt(2))
-        final consumer = new Consumer(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource, retryBuilder)
+        final consumer = new ConsumerImpl(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource, retryBuilder)
         taskQueryService.find(queueId, READY, []) >> [readyTask1].iterator()
         consumerFunction.execute(startedTask1) >> Reply.fail(failureReason)
         taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)

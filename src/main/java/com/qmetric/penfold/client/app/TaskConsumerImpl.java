@@ -1,13 +1,14 @@
 package com.qmetric.penfold.client.app;
 
-import com.qmetric.penfold.client.app.support.Interval;
 import com.qmetric.penfold.client.app.support.ShutdownProcedure;
 import com.qmetric.penfold.client.domain.services.Consumer;
 import com.qmetric.penfold.client.domain.services.TaskConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
@@ -17,13 +18,13 @@ public class TaskConsumerImpl implements TaskConsumer
 
     private final Consumer consumer;
 
-    private final Interval interval;
+    private final Duration interval;
 
     private final ScheduledExecutorService scheduledExecutorService;
 
     private final ShutdownProcedure shutdownProcedure;
 
-    public TaskConsumerImpl(final Consumer consumer, final Interval interval)
+    public TaskConsumerImpl(final Consumer consumer, final Duration interval)
     {
         this.consumer = consumer;
         this.interval = interval;
@@ -33,7 +34,7 @@ public class TaskConsumerImpl implements TaskConsumer
 
     @Override public void start()
     {
-        scheduledExecutorService.scheduleAtFixedRate(this::consume, 0, interval.duration, interval.unit);
+        scheduledExecutorService.scheduleAtFixedRate(this::consume, 0, interval.getSeconds(), TimeUnit.SECONDS);
         shutdownProcedure.registerShutdownHook();
     }
 

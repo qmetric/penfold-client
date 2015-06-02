@@ -6,7 +6,7 @@ import com.qmetric.penfold.client.app.support.PenfoldServerHealthCheck;
 
 import javax.ws.rs.client.Client;
 
-public class HealthCheckConfigurer
+public class PenfoldServerConnectivityHealthCheckConfigurer
 {
     private final String url;
 
@@ -18,14 +18,14 @@ public class HealthCheckConfigurer
      * @param serverUrl Penfold server url
      * @param healthCheckRegistry existing health check registry
      */
-    public HealthCheckConfigurer(final String serverUrl, final HealthCheckRegistry healthCheckRegistry)
+    public PenfoldServerConnectivityHealthCheckConfigurer(final String serverUrl, final HealthCheckRegistry healthCheckRegistry)
     {
         this.url = serverUrl;
         this.healthCheckRegistry = healthCheckRegistry;
     }
 
     /**
-     * Append penfold health checks to existing health check registry.
+     * Append penfold connectivity health check to health check registry.
      *
      * @return Updated health check registry.
      */

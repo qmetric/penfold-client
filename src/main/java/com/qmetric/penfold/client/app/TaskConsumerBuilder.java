@@ -1,23 +1,24 @@
 package com.qmetric.penfold.client.app;
 
+import com.codahale.metrics.health.HealthCheckRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qmetric.penfold.client.app.support.ClientFactory;
+import com.qmetric.penfold.client.app.support.ConsumerThreadActivityHealthCheck;
 import com.qmetric.penfold.client.app.support.Credentials;
-import com.qmetric.penfold.client.app.support.Interval;
 import com.qmetric.penfold.client.app.support.LocalDateTimeSource;
 import com.qmetric.penfold.client.app.support.ObjectMapperFactory;
 import com.qmetric.penfold.client.domain.model.QueueId;
 import com.qmetric.penfold.client.domain.services.Consumer;
 import com.qmetric.penfold.client.domain.services.ConsumerFunction;
+import com.qmetric.penfold.client.domain.services.ConsumerImpl;
 import com.qmetric.penfold.client.domain.services.TaskConsumer;
 import com.qmetric.penfold.client.domain.services.TaskQueryService;
 import com.qmetric.penfold.client.domain.services.TaskStoreService;
 
+import java.time.Duration;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.concurrent.TimeUnit.MINUTES;
 
 public class TaskConsumerBuilder
 {
@@ -29,9 +30,13 @@ public class TaskConsumerBuilder
 
     private Credentials credentials;
 
-    private Interval pollingFrequency = new Interval(1, MINUTES);
+    private Duration pollingFrequency = Duration.ofMinutes(1);
 
-    private Optional<Interval> retryDelay = Optional.empty();
+    private Optional<Duration> retryDelay = Optional.empty();
+
+    private Optional<Duration> minimumTimeBetweenConsumingForHealthCheck = Optional.empty();
+
+    private Optional<HealthCheckRegistry> healthCheckRegistry = Optional.empty();
 
     /**
      * Penfold server url
@@ -86,12 +91,11 @@ public class TaskConsumerBuilder
      * How often to check queue for new entries to consume (default 1 minute).
      *
      * @param interval Polling interval.
-     * @param timeUnit Time unit
      * @return Updated builder
      */
-    public TaskConsumerBuilder withPollingFrequency(final long interval, final TimeUnit timeUnit)
+    public TaskConsumerBuilder withPollingFrequency(final Duration interval)
     {
-        this.pollingFrequency = new Interval(interval, timeUnit);
+        this.pollingFrequency = interval;
         return this;
     }
 
@@ -99,12 +103,25 @@ public class TaskConsumerBuilder
      * How long to wait before retying after a task fails to be consumed (default no delay).
      *
      * @param interval Polling interval.
-     * @param timeUnit Time unit
      * @return Updated builder
      */
-    public TaskConsumerBuilder delayBetweenEachRetryOf(final long interval, final TimeUnit timeUnit)
+    public TaskConsumerBuilder delayBetweenEachRetryOf(final Duration interval)
     {
-        this.retryDelay = Optional.of(new Interval(interval, timeUnit));
+        this.retryDelay = Optional.of(interval);
+        return this;
+    }
+
+    /**
+     * How long between consuming before consumer marked as unhealthy.
+     *
+     * @param minimumTimeBetweenConsumingForHealthCheck Time between consuming.
+     * @return Updated builder
+     */
+    public TaskConsumerBuilder withActivityHealthCheck(final Duration minimumTimeBetweenConsumingForHealthCheck, final HealthCheckRegistry healthCheckRegistry)
+    {
+        this.minimumTimeBetweenConsumingForHealthCheck = Optional.of(minimumTimeBetweenConsumingForHealthCheck);
+        this.healthCheckRegistry = Optional.of(healthCheckRegistry);
+
         return this;
     }
 
@@ -119,7 +136,17 @@ public class TaskConsumerBuilder
 
         final LocalDateTimeSource dateTimeSource = new LocalDateTimeSource();
 
-        final Consumer consumer = new Consumer(queue, function, retryDelay, taskQueryService, taskStoreService, dateTimeSource);
+        final Consumer consumer;
+        if (minimumTimeBetweenConsumingForHealthCheck.isPresent())
+        {
+            consumer = new ConsumerThreadActivityHealthCheck(new ConsumerImpl(queue, function, retryDelay, taskQueryService, taskStoreService, dateTimeSource), dateTimeSource, minimumTimeBetweenConsumingForHealthCheck.get());
+
+            healthCheckRegistry.get().register(String.format("%s scheduling consumer", queue.value), (ConsumerThreadActivityHealthCheck) consumer);
+        }
+        else
+        {
+            consumer = new ConsumerImpl(queue, function, retryDelay, taskQueryService, taskStoreService, dateTimeSource);
+        }
 
         return new TaskConsumerImpl(consumer, pollingFrequency);
     }
@@ -132,5 +159,7 @@ public class TaskConsumerBuilder
         checkArgument(credentials != null, "missing credentials");
         checkArgument(pollingFrequency != null, "missing polling frequency");
         checkArgument(retryDelay != null, "missing retry delay");
+        checkArgument(minimumTimeBetweenConsumingForHealthCheck != null, "missing minimumTimeBetweenConsumingForHealthCheck");
+        checkArgument(healthCheckRegistry != null, "missing healthCheckRegistry");
     }
 }

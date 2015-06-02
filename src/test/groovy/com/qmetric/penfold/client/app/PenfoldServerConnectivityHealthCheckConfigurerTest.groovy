@@ -4,11 +4,11 @@ import com.codahale.metrics.health.HealthCheckRegistry
 import com.qmetric.penfold.client.app.support.PenfoldServerHealthCheck
 import spock.lang.Specification
 
-class HealthCheckConfigurerTest extends Specification {
+class PenfoldServerConnectivityHealthCheckConfigurerTest extends Specification {
 
     final healthCheckRegistry = Mock(HealthCheckRegistry)
 
-    final configurer = new HealthCheckConfigurer("http://localhost", healthCheckRegistry)
+    final configurer = new PenfoldServerConnectivityHealthCheckConfigurer("http://localhost", healthCheckRegistry)
 
     def "should append health checks to existing registry"()
     {

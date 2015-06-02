@@ -55,7 +55,8 @@ new TaskConsumerBuilder()
     .fromServer("http://localhost")
     .withCredentials("user", "pass")
     .fromQueue("testqueue")
-    .delayBetweenEachRetryOf(15, TimeUnit.MINUTES)
+    .delayBetweenEachRetryOf(Duration.ofMinutes(15))
+    .withActivityHealthCheck(Duration.ofMinutes(30), existingHealthCheckRegistry)
     .consumeWith(new ConsumerFunction() {
         @Override public Reply execute(final Task task) {
             // your implementation here
@@ -65,10 +66,10 @@ new TaskConsumerBuilder()
 ```
 
 
-#### Health checks:
+#### Connectivity health check:
 
-Penfold specific health checks can be appended to an existing com.codahale.metrics.health.HealthCheckRegistry.
+Penfold connectivity health check can be appended to an existing com.codahale.metrics.health.HealthCheckRegistry.
 
 ```java
-final HealthCheckRegistry updated = new HealthCheckConfigurer("http://localhost", existingHealthCheckRegistry).configure()
+final HealthCheckRegistry updated = new PenfoldServerConnectivityHealthCheckConfigurer("http://localhost", existingHealthCheckRegistry).configure()
 ```
