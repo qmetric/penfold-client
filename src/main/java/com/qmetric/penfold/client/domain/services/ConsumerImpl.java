@@ -37,7 +37,7 @@ public class ConsumerImpl implements Consumer
 
     private final RetryerBuilder<Void> retryBuilder;
 
-    private final QueueId queue;
+    public final QueueId queue;
 
     private final ConsumerFunction function;
 
@@ -67,11 +67,18 @@ public class ConsumerImpl implements Consumer
         this.retryBuilder = retryBuilder;
     }
 
+    @Override public QueueId getQueue()
+    {
+        return queue;
+    }
+
     @Override public void consume()
     {
-        LOG.info(String.format("consuming from %s queue", queue));
+        LOG.info(String.format("checking for tasks to consume from %s queue", queue));
 
         final Iterator<Task> tasks = taskQueryService.find(queue, TaskStatus.READY, ImmutableList.of());
+
+        LOG.info(String.format("successfully checked for tasks to consume from %s queue", queue));
 
         while (tasks.hasNext())
         {

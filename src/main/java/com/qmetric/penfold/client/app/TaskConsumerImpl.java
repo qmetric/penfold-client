@@ -47,11 +47,15 @@ public class TaskConsumerImpl implements TaskConsumer
     {
         try
         {
+            LOG.info(String.format("consuming from %s queue", consumer.getQueue()));
+
             consumer.consume();
+
+            LOG.info(String.format("successfully consumed from %s queue", consumer.getQueue()));
         }
         catch (final Exception | Error e)
         {
-            LOG.error("failed to consume", e);
+            LOG.error(String.format("failed to consume from queue %s", consumer.getQueue()), e);
         }
     }
 }

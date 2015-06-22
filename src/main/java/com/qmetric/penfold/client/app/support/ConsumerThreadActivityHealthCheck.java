@@ -1,6 +1,7 @@
 package com.qmetric.penfold.client.app.support;
 
 import com.codahale.metrics.health.HealthCheck;
+import com.qmetric.penfold.client.domain.model.QueueId;
 import com.qmetric.penfold.client.domain.model.Task;
 import com.qmetric.penfold.client.domain.services.Consumer;
 
@@ -32,6 +33,11 @@ public class ConsumerThreadActivityHealthCheck extends HealthCheck implements Co
     @Override protected synchronized HealthCheck.Result check() throws Exception
     {
         return !lastConsumed.isPresent() || durationSinceLastConsumedIsLongerThanTolerableDelay() ? unhealthyResult() : healthyResult();
+    }
+
+    @Override public QueueId getQueue()
+    {
+        return delegate.getQueue();
     }
 
     @Override public void consume()
