@@ -74,11 +74,7 @@ public class ConsumerImpl implements Consumer
 
     @Override public void consume()
     {
-        LOG.info(String.format("checking for tasks to consume from %s queue", queue));
-
         final Iterator<Task> tasks = taskQueryService.find(queue, TaskStatus.READY, ImmutableList.of());
-
-        LOG.info(String.format("successfully checked for tasks to consume from %s queue", queue));
 
         while (tasks.hasNext())
         {
