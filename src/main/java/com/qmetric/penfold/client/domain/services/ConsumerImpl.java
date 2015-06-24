@@ -33,7 +33,7 @@ public class ConsumerImpl implements Consumer
     private static final RetryerBuilder<Void> DEFAULT_RETRY_BUILDER = RetryerBuilder.<Void>newBuilder() //
             .retryIfException() //
             .withWaitStrategy(fixedWait(10, SECONDS)) //
-            .withStopStrategy(stopAfterAttempt(2));
+            .withStopStrategy(stopAfterAttempt(100));
 
     private final RetryerBuilder<Void> retryBuilder;
 

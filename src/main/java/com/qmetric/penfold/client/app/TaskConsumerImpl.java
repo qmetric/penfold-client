@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.Random;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -15,6 +16,8 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 public class TaskConsumerImpl implements TaskConsumer
 {
     private static final Logger LOG = LoggerFactory.getLogger(TaskConsumerImpl.class);
+
+    private static final int RANDOM_INITIAL_DELAY = 60;
 
     private final Consumer consumer;
 
@@ -34,13 +37,18 @@ public class TaskConsumerImpl implements TaskConsumer
 
     @Override public void start()
     {
-        scheduledExecutorService.scheduleAtFixedRate(this::consume, 0, interval.getSeconds(), TimeUnit.SECONDS);
+        scheduledExecutorService.scheduleAtFixedRate(this::consume, randomInitialDelay(), interval.getSeconds(), TimeUnit.SECONDS);
         shutdownProcedure.registerShutdownHook();
     }
 
     public void stop()
     {
         shutdownProcedure.runAndRemoveHook();
+    }
+
+    private int randomInitialDelay()
+    {
+        return new Random().nextInt(RANDOM_INITIAL_DELAY);
     }
 
     private void consume()
