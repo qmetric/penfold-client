@@ -3,6 +3,7 @@ package com.qmetric.penfold.client.domain.services;
 import com.github.rholder.retry.RetryerBuilder;
 import com.google.common.collect.ImmutableList;
 import com.qmetric.penfold.client.app.support.LocalDateTimeSource;
+import com.qmetric.penfold.client.domain.exceptions.ConflictException;
 import com.qmetric.penfold.client.domain.model.QueueId;
 import com.qmetric.penfold.client.domain.model.Reply;
 import com.qmetric.penfold.client.domain.model.Task;
@@ -78,19 +79,28 @@ public class ConsumerImpl implements Consumer
 
         while (tasks.hasNext())
         {
-            final Task task = taskStoreService.start(tasks.next());
+            final Task task = tasks.next();
 
-            consumeTask(task);
+            try
+            {
+                consumeTask(task);
+            }
+            catch (ConflictException e)
+            {
+                LOG.info(String.format("task conflict %s when consumed from %s queue", task, queue), e);
+            }
         }
     }
 
     @Override public void consumeTask(final Task task)
     {
-        final Reply reply = executeFunction(task);
+        final Task startedTask = taskStoreService.start(task);
 
-        applyReplyWithRetries(task.id, reply);
+        final Reply reply = executeFunction(startedTask);
 
-        LOG.info(String.format("task %s consumed from %s queue with reply %s", task, queue, reply));
+        applyReplyWithRetries(startedTask.id, reply);
+
+        LOG.info(String.format("task %s consumed from %s queue with reply %s", startedTask, queue, reply));
     }
 
     private void applyReplyWithRetries(final TaskId taskId, final Reply reply)

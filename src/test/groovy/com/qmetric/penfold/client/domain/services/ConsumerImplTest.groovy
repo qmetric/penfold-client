@@ -2,6 +2,7 @@ package com.qmetric.penfold.client.domain.services
 
 import com.github.rholder.retry.RetryerBuilder
 import com.qmetric.penfold.client.app.support.LocalDateTimeSource
+import com.qmetric.penfold.client.domain.exceptions.ConflictException
 import com.qmetric.penfold.client.domain.model.*
 import spock.lang.Specification
 
@@ -129,6 +130,25 @@ class ConsumerImplTest extends Specification {
 
         then:
         1 * taskStoreService.requeue(startedTask1, failureReason)
+    }
+
+    def "should ignore task conflicts"()
+    {
+        given:
+        final readyTaskAlreadyStarted = readyTask1.builder().withQueue(new QueueId("q2")).build()
+        taskStoreService.start(readyTaskAlreadyStarted) >> {throw new ConflictException("")}
+        taskQueryService.find(queueId, READY, []) >> [readyTask1, readyTaskAlreadyStarted, readyTask2].iterator()
+        consumerFunction.execute(startedTask1) >> Reply.success()
+        consumerFunction.execute(startedTask2) >> Reply.success()
+        taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
+        taskQueryService.find(startedTask2.id) >> Optional.of(startedTask2)
+
+        when:
+        consumer.consume()
+
+        then:
+        1 * taskStoreService.close(startedTask1, Optional.of(CloseResultType.success), empty())
+        1 * taskStoreService.close(startedTask2, Optional.of(CloseResultType.success), empty())
     }
 
     def "should retry when attempt to close task fails"()
