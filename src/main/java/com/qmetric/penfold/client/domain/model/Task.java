@@ -16,19 +16,22 @@ public class Task
 
     public final LocalDateTime created;
 
+    public final LocalDateTime triggerDate;
+
     public final TaskStatus status;
 
     public final int attempts;
 
     public final Payload payload;
 
-    public Task(final TaskId id, final Integer version, final QueueId queue, final TaskStatus status, final LocalDateTime created, final int attempts,
-                final Payload payload)
+    public Task(final TaskId id, final Integer version, final QueueId queue, final TaskStatus status, final LocalDateTime created, final LocalDateTime triggerDate,
+                final int attempts, final Payload payload)
     {
         this.id = id;
         this.version = version;
         this.queue = queue;
         this.created = created;
+        this.triggerDate = triggerDate;
         this.status = status;
         this.attempts = attempts;
         this.payload = payload;
@@ -64,6 +67,8 @@ public class Task
 
         private LocalDateTime created;
 
+        private LocalDateTime triggerDate;
+
         private TaskStatus status;
 
         private int attempts;
@@ -76,6 +81,7 @@ public class Task
             this.version = task.version;
             this.queue = task.queue;
             this.created = task.created;
+            this.triggerDate = task.triggerDate;
             this.status = task.status;
             this.attempts = task.attempts;
             this.payload = task.payload;
@@ -104,6 +110,12 @@ public class Task
             return this;
         }
 
+        public Builder withTriggerDate(final LocalDateTime triggerDate)
+        {
+            this.triggerDate = triggerDate;
+            return this;
+        }
+
         public Builder withStatus(final TaskStatus status)
         {
             this.status = status;
@@ -124,7 +136,7 @@ public class Task
 
         public Task build()
         {
-            return new Task(id, version, queue, status, created, attempts, payload);
+            return new Task(id, version, queue, status, created, triggerDate, attempts, payload);
         }
     }
 }

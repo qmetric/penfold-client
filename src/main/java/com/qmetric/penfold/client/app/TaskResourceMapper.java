@@ -22,8 +22,9 @@ class TaskResourceMapper
         final QueueId queueId = new QueueId(input.getValueAsString("queue").orNull());
         final TaskStatus status = new TaskStatus(input.getValueAsString("status").orNull());
         final LocalDateTime created = TaskDateTimeFormatter.parse(input.getValueAsString("created").get());
+        final LocalDateTime triggerDate = TaskDateTimeFormatter.parse(input.getValueAsString("triggerDate").get());
         final Payload payload = new Payload(input.getValueAsObject("payload", new TypeToken<Map<String, Object>>() {}).get());
 
-        return new Task(id, version, queueId, status, created, attempts, payload);
+        return new Task(id, version, queueId, status, created, triggerDate, attempts, payload);
     }
 }

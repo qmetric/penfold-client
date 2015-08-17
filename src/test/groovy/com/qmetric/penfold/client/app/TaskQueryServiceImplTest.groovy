@@ -23,7 +23,11 @@ import static com.qmetric.penfold.client.domain.model.TaskStatus.READY
 
 class TaskQueryServiceImplTest extends Specification {
 
-    public static final Task expectedTask = new Task(new TaskId("1"), 1, new QueueId("q1"), READY, LocalDateTime.of(2014, 2, 25, 12, 0, 0), 1, new Payload([type: "type1"]))
+    public static final LocalDateTime created = LocalDateTime.of(2014, 2, 25, 12, 0, 0)
+
+    public static final LocalDateTime triggerDate = LocalDateTime.of(2014, 04, 15, 10, 35, 5, 0)
+
+    public static final Task expectedTask = new Task(new TaskId("1"), 1, new QueueId("q1"), READY, created, triggerDate, 1, new Payload([type: "type1"]))
 
     final currentDate = LocalDateTime.of(2014, 9, 1, 12, 0, 0, 0)
 
