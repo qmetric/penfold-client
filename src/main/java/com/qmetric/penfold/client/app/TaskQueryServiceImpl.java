@@ -1,10 +1,11 @@
 package com.qmetric.penfold.client.app;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import com.qmetric.hal.reader.HalReader;
 import com.qmetric.hal.reader.HalResource;
 import com.qmetric.penfold.client.app.commands.filter.Filter;
-import com.qmetric.penfold.client.app.support.Credentials;
 import com.qmetric.penfold.client.app.support.QuerySerializer;
 import com.qmetric.penfold.client.domain.model.PageReference;
 import com.qmetric.penfold.client.domain.model.QueueId;
@@ -18,19 +19,26 @@ import com.qmetric.penfold.client.domain.services.TaskIterator;
 import com.qmetric.penfold.client.domain.services.TaskQueryService;
 import com.theoryinpractise.halbuilder.api.Link;
 import com.theoryinpractise.halbuilder.api.RepresentationFactory;
-import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
+import org.apache.http.HttpHeaders;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.message.BasicHeader;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MultivaluedHashMap;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-
+import java.io.IOException;
+import java.io.Reader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +46,7 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.String.format;
+import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 
 public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQueryService
 {
@@ -59,7 +68,7 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
 
     private final String baseUri;
 
-    private final Client client;
+    private final HttpClient client;
 
     private final HalReader halReader;
 
@@ -67,11 +76,10 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
 
     private final QuerySerializer querySerializer;
 
-    public TaskQueryServiceImpl(final String baseUri, final Credentials credentials, final Client client, final ObjectMapper objectMapper)
+    public TaskQueryServiceImpl(final String baseUri, final HttpClient client, final ObjectMapper objectMapper)
     {
         this.baseUri = baseUri;
         this.client = client;
-        this.client.register(HttpAuthenticationFeature.basic(credentials.username, credentials.password));
         this.halReader = new HalReader(objectMapper);
         this.querySerializer = new QuerySerializer(objectMapper);
     }
@@ -109,10 +117,10 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
 
     private TasksPage retrieve(final String url, final List<Filter> filters, final Optional<PageReference> pageRequest)
     {
-        final MultivaluedMap<String, String> queryString = queryString(filters);
+        final Multimap<String, String> queryString = queryString(filters);
         appendPageParamToRequestIfPresent(pageRequest, queryString);
 
-        final HalResource tasksResource = get(url, queryString);
+        final HalResource tasksResource = getHalResource(url, queryString);
 
         final Optional<PageReference> previousPageReference = pageReferenceFrom(tasksResource.getLinkByRel(PREVIOUS_LINK_REL));
 
@@ -123,13 +131,13 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
         return new TasksPage(tasks, previousPageReference, nextPageReference);
     }
 
-    private void appendFiltersParamToRequestIfPresent(final MultivaluedMap<String, String> queryParams, final List<Filter> filters)
+    private void appendFiltersParamToRequestIfPresent(final Multimap<String, String> queryParams, final List<Filter> filters)
     {
         final Optional<String> queryValueAsString = querySerializer.serialize(filters);
 
         if (queryValueAsString.isPresent())
         {
-            queryParams.add("q", encode(queryValueAsString));
+            queryParams.put("q", encode(queryValueAsString));
         }
     }
 
@@ -146,11 +154,11 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
         }
     }
 
-    private void appendPageParamToRequestIfPresent(final Optional<PageReference> pageRequest, final MultivaluedMap<String, String> queryParams)
+    private void appendPageParamToRequestIfPresent(final Optional<PageReference> pageRequest, final Multimap<String, String> queryParams)
     {
         if (pageRequest.isPresent())
         {
-            queryParams.add("page", pageRequest.get().value);
+            queryParams.put("page", pageRequest.get().value);
         }
     }
 
@@ -175,46 +183,79 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
         }
     }
 
-    private MultivaluedMap<String, String> queryString(final List<Filter> filters)
+    private Multimap<String, String> queryString(final List<Filter> filters)
     {
-        final MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<>();
+        final Multimap<String, String> queryParams = HashMultimap.create();
 
         appendFiltersParamToRequestIfPresent(queryParams, filters);
 
         return queryParams;
     }
 
-    private HalResource get(final String url, final MultivaluedMap<String, String> params)
-    {
-        final WebTarget target = params.entrySet().stream()
-                .reduce(client.target(url),
-                        (previous, updated) -> previous.queryParam(updated.getKey(), updated.getValue().toArray()),
-                        (previous, updated) -> updated);
-
-        final Response response = target.request(ACCEPT).get();
-
-        checkResponseStatus(response, 200);
-
-        return halReader.read(new StringReader(response.readEntity(String.class)));
-    }
-
     private Optional<HalResource> getTaskResource(final TaskId taskId)
     {
-        final Response response = client.target(format(RETRIEVE_TASK_URI_TEMPLATE, baseUri, taskId.value)).request(ACCEPT).get();
-        if (response.getStatus() == 404)
+        final Optional<Reader> response = get(format(RETRIEVE_TASK_URI_TEMPLATE, baseUri, taskId.value), HashMultimap.create());
+        if (!response.isPresent())
         {
             return Optional.empty();
         }
-        else
-        {
-            checkResponseStatus(response, 200);
+        return Optional.of(halReader.read(response.get()));
+    }
 
-            return Optional.of(halReader.read(new StringReader(response.readEntity(String.class))));
+    private HalResource getHalResource(final String url, final Multimap<String, String> params)
+    {
+        final Optional<Reader> response = get(url, params);
+        if (!response.isPresent())
+        {
+            checkResponseStatus(404, 200);
+        }
+        return halReader.read(response.get());
+    }
+
+    private Optional<Reader> get(final String url, final Multimap<String, String> params)
+    {
+        HttpResponse response = null;
+        try
+        {
+            final List<NameValuePair> nameValuePairs = params.entries().stream()
+                    .map((entry) -> new BasicNameValuePair(entry.getKey(), entry.getValue()))
+                    .collect(Collectors.toList());
+
+            final URI uri = new URIBuilder(url).addParameters(nameValuePairs).build();
+
+            final HttpGet httpGet = new HttpGet(uri);
+            httpGet.addHeader(new BasicHeader(HttpHeaders.ACCEPT, ACCEPT));
+            response = client.execute(httpGet);
+
+            final int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode == HTTP_NOT_FOUND)
+            {
+                return Optional.empty();
+            }
+            checkResponseStatus(statusCode, 200);
+
+            String entity = EntityUtils.toString(response.getEntity(), Charset.forName("UTF-8"));
+            return Optional.<Reader>of(new StringReader(entity));
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException("Error getting HAL feed: ", e);
+        }
+        catch (URISyntaxException e)
+        {
+            throw new RuntimeException("Invalid URL for penfold client:", e);
+        }
+        finally
+        {
+            if (response != null)
+            {
+                EntityUtils.consumeQuietly(response.getEntity());
+            }
         }
     }
 
-    private void checkResponseStatus(final Response response, final int status)
+    private void checkResponseStatus(final int actualStatusCode, final int expectedStatusCode)
     {
-        checkState(response.getStatus() == status, "unexpected response %s", response.getStatus());
+        checkState(actualStatusCode == expectedStatusCode, "unexpected response %s", actualStatusCode);
     }
 }

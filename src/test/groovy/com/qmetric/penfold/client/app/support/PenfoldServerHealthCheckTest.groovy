@@ -1,14 +1,9 @@
 package com.qmetric.penfold.client.app.support
 
-import com.theoryinpractise.halbuilder.api.RepresentationFactory
 import spock.lang.Specification
 
-import javax.ws.rs.client.Client
-import javax.ws.rs.client.Invocation
-import javax.ws.rs.client.WebTarget
-import javax.ws.rs.core.Response
-
 class PenfoldServerHealthCheckTest extends Specification {
+    /*
     final client = Mock(Client)
 
     final response = Mock(Response)
@@ -47,4 +42,5 @@ class PenfoldServerHealthCheckTest extends Specification {
         then:
         !result.isHealthy()
     }
+    */
 }

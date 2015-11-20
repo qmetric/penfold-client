@@ -131,8 +131,8 @@ public class TaskConsumerBuilder
 
         final ObjectMapper objectMapper = ObjectMapperFactory.create();
 
-        final TaskQueryService taskQueryService = new TaskQueryServiceImpl(url, credentials, ClientFactory.create(), objectMapper);
-        final TaskStoreService taskStoreService = new TaskStoreServiceImpl(url, credentials, ClientFactory.create(), objectMapper);
+        final TaskQueryService taskQueryService = new TaskQueryServiceImpl(url, ClientFactory.createHttpClient(credentials), objectMapper);
+        final TaskStoreService taskStoreService = new TaskStoreServiceImpl(url, ClientFactory.createHttpClient(credentials), objectMapper);
 
         final LocalDateTimeSource dateTimeSource = new LocalDateTimeSource();
 

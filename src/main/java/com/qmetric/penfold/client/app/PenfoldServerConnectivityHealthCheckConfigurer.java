@@ -3,8 +3,7 @@ package com.qmetric.penfold.client.app;
 import com.codahale.metrics.health.HealthCheckRegistry;
 import com.qmetric.penfold.client.app.support.ClientFactory;
 import com.qmetric.penfold.client.app.support.PenfoldServerHealthCheck;
-
-import javax.ws.rs.client.Client;
+import org.apache.http.client.HttpClient;
 
 public class PenfoldServerConnectivityHealthCheckConfigurer
 {
@@ -31,9 +30,9 @@ public class PenfoldServerConnectivityHealthCheckConfigurer
      */
     public HealthCheckRegistry configure()
     {
-        final Client client = ClientFactory.create();
+        final HttpClient httpClient = ClientFactory.createHttpClient(null);
 
-        healthCheckRegistry.register("penfold server", new PenfoldServerHealthCheck(url, client));
+        healthCheckRegistry.register("penfold server", new PenfoldServerHealthCheck(url, httpClient));
 
         return healthCheckRegistry;
     }

@@ -2,6 +2,7 @@ package com.qmetric.penfold.client.app;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import com.qmetric.hal.reader.HalReader;
 import com.qmetric.hal.reader.HalResource;
 import com.qmetric.penfold.client.app.commands.CancelTaskCommand;
@@ -10,7 +11,6 @@ import com.qmetric.penfold.client.app.commands.CreateTaskCommand;
 import com.qmetric.penfold.client.app.commands.RequeueTaskCommand;
 import com.qmetric.penfold.client.app.commands.RescheduleTaskCommand;
 import com.qmetric.penfold.client.app.commands.StartTaskCommand;
-import com.qmetric.penfold.client.app.support.Credentials;
 import com.qmetric.penfold.client.domain.exceptions.ConflictException;
 import com.qmetric.penfold.client.domain.model.CloseResultType;
 import com.qmetric.penfold.client.domain.model.CommandType;
@@ -20,14 +20,18 @@ import com.qmetric.penfold.client.domain.model.TaskId;
 import com.qmetric.penfold.client.domain.services.TaskStoreService;
 import com.theoryinpractise.halbuilder.api.Link;
 import com.theoryinpractise.halbuilder.api.RepresentationFactory;
-import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
+import org.apache.http.HttpHeaders;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.message.BasicHeader;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Response;
-
+import java.io.IOException;
 import java.io.StringReader;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -49,7 +53,7 @@ public class TaskStoreServiceImpl implements TaskStoreService
 
     private final String baseUri;
 
-    private final Client client;
+    private final HttpClient httpClient;
 
     private final ObjectMapper objectMapper;
 
@@ -57,12 +61,11 @@ public class TaskStoreServiceImpl implements TaskStoreService
 
     private final TaskResourceMapper resourceMapper = new TaskResourceMapper();
 
-    public TaskStoreServiceImpl(final String baseUri, final Credentials credentials, final Client client, final ObjectMapper objectMapper)
+    public TaskStoreServiceImpl(final String baseUri, final HttpClient httpClient, final ObjectMapper objectMapper)
     {
         this.baseUri = baseUri;
-        this.client = client;
+        this.httpClient = httpClient;
         this.objectMapper = objectMapper;
-        this.client.register(HttpAuthenticationFeature.basic(credentials.username, credentials.password));
         this.halReader = new HalReader(objectMapper);
     }
 
@@ -72,11 +75,30 @@ public class TaskStoreServiceImpl implements TaskStoreService
 
         final CommandType commandType = task.triggerDate.isPresent() ? CommandType.CreateFutureTask : CommandType.CreateTask;
 
-        final Response response = client.target(format(CREATE_TASK_URI_TEMPLATE, baseUri)).request(ACCEPT).post(Entity.entity(taskJson, contentTypeHeaderFor(commandType)));
+        HttpPost httpPost = new HttpPost(format(CREATE_TASK_URI_TEMPLATE, baseUri));
+        httpPost.addHeader(HttpHeaders.ACCEPT, ACCEPT);
+        httpPost.addHeader(HttpHeaders.CONTENT_TYPE, contentTypeHeaderFor(commandType));
+        final StringEntity requestEntity = new StringEntity(taskJson, Charsets.UTF_8);
+        httpPost.setEntity(requestEntity);
 
-        checkResponseStatus(response, 201);
-
-        return taskFromResponse(response);
+        HttpResponse response = null;
+        try
+        {
+            response = httpClient.execute(httpPost);
+            checkResponseStatus(response.getStatusLine().getStatusCode(), 201);
+            return taskFromResponse(response);
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException("Error getting HAL feed: ", e);
+        }
+        finally
+        {
+            if (response != null)
+            {
+                EntityUtils.consumeQuietly(response.getEntity());
+            }
+        }
     }
 
     @Override public Task start(final Task task) throws ConflictException
@@ -113,18 +135,35 @@ public class TaskStoreServiceImpl implements TaskStoreService
         if (updateTaskLink.isPresent())
         {
             final String json = toJson(command);
-            final Response response = client.target(updateTaskLink.get().getHref()).request(ACCEPT).post(Entity.entity(format(json, task.id), contentTypeHeaderFor(commandType)));
 
-            final int responseStatus = response.getStatus();
+            final HttpPost httpPost = new HttpPost(updateTaskLink.get().getHref());
+            httpPost.addHeader(HttpHeaders.ACCEPT, ACCEPT);
+            httpPost.addHeader(HttpHeaders.CONTENT_TYPE, contentTypeHeaderFor(commandType));
+            httpPost.setEntity(new StringEntity(format(json, task.id), Charsets.UTF_8));
 
-            if (responseStatus == 409)
+            HttpResponse response = null;
+            try
             {
-                throw new ConflictException(String.format("conflict when attempting to %s task %s", commandType, task.id));
+                response = httpClient.execute(httpPost);
+                final int responseStatus = response.getStatusLine().getStatusCode();
+                if (responseStatus == 409)
+                {
+                    throw new ConflictException(String.format("conflict when attempting to %s task %s", commandType, task.id));
+                }
+                checkResponseStatus(response.getStatusLine().getStatusCode(), 200);
+                return taskFromResponse(response);
             }
-
-            checkState(responseStatus == 200, "error %s when attempting to %s task %s", responseStatus, commandType, task.id);
-
-            return taskFromResponse(response);
+            catch (IOException e)
+            {
+                throw new RuntimeException("Error getting HAL feed: ", e);
+            }
+            finally
+            {
+                if (response != null)
+                {
+                    EntityUtils.consumeQuietly(response.getEntity());
+                }
+            }
         }
         else
         {
@@ -134,10 +173,30 @@ public class TaskStoreServiceImpl implements TaskStoreService
 
     private HalResource getTaskResource(final TaskId taskId)
     {
-        final Response response = client.target(format(RETRIEVE_TASK_URI_TEMPLATE, baseUri, taskId)).request(ACCEPT).get();
-        checkResponseStatus(response, 200);
+        final HttpGet httpGet = new HttpGet(format(RETRIEVE_TASK_URI_TEMPLATE, baseUri, taskId));
+        httpGet.addHeader(new BasicHeader(HttpHeaders.ACCEPT, ACCEPT));
 
-        return halReader.read(new StringReader(response.readEntity(String.class)));
+        HttpResponse response = null;
+        try
+        {
+            response = httpClient.execute(httpGet);
+
+            final int statusCode = response.getStatusLine().getStatusCode();
+            checkResponseStatus(statusCode, 200);
+            String entity = EntityUtils.toString(response.getEntity(), Charsets.UTF_8);
+            return halReader.read(new StringReader(entity));
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException("Error getting task with id: " + taskId, e);
+        }
+        finally
+        {
+            if (response != null)
+            {
+                EntityUtils.consumeQuietly(response.getEntity());
+            }
+        }
     }
 
     private HalResource getTaskResourceWithExpectedVersion(final TaskId id, final Integer expectedVersion)
@@ -154,9 +213,9 @@ public class TaskStoreServiceImpl implements TaskStoreService
         }
     }
 
-    private void checkResponseStatus(final Response response, final int status)
+    private void checkResponseStatus(final int actualStatusCode, final int expectedStatusCode)
     {
-        checkState(response.getStatus() == status, "Unexpected response %s", response.getStatus());
+        checkState(actualStatusCode == expectedStatusCode, "Unexpected response %s", actualStatusCode);
     }
 
     private String toJson(final Object object)
@@ -172,9 +231,10 @@ public class TaskStoreServiceImpl implements TaskStoreService
         }
     }
 
-    private Task taskFromResponse(final Response response)
+    private Task taskFromResponse(final HttpResponse response) throws IOException
     {
-        final HalResource taskHalResource = halReader.read(new StringReader(response.readEntity(String.class)));
+        final String reponseString = EntityUtils.toString(response.getEntity());
+        final HalResource taskHalResource = halReader.read(new StringReader(reponseString));
 
         return resourceMapper.getTaskFromResource(taskHalResource);
     }

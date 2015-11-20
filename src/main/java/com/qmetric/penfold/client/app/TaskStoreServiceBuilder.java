@@ -5,8 +5,7 @@ import com.qmetric.penfold.client.app.support.ClientFactory;
 import com.qmetric.penfold.client.app.support.Credentials;
 import com.qmetric.penfold.client.app.support.ObjectMapperFactory;
 import com.qmetric.penfold.client.domain.services.TaskStoreService;
-
-import javax.ws.rs.client.Client;
+import org.apache.http.client.HttpClient;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -45,11 +44,11 @@ public class TaskStoreServiceBuilder
     {
         checkValid();
 
-        final Client client = ClientFactory.create();
+        final HttpClient httpClient = ClientFactory.createHttpClient(credentials);
 
         final ObjectMapper objectMapper = ObjectMapperFactory.create();
 
-        return new TaskStoreServiceImpl(url, credentials, client, objectMapper);
+        return new TaskStoreServiceImpl(url, httpClient, objectMapper);
     }
 
     private void checkValid()

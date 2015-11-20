@@ -1,11 +1,12 @@
 package com.qmetric.penfold.client.app.support;
 
 import com.codahale.metrics.health.HealthCheck;
+import org.apache.http.HttpHeaders;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.ws.rs.client.Client;
-import javax.ws.rs.core.Response;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -22,25 +23,29 @@ public class PenfoldServerHealthCheck extends HealthCheck
 
     private final String serverUrl;
 
-    private final Client client;
+    private final HttpClient httpClient;
 
-    public PenfoldServerHealthCheck(final String feedUrl, final Client client)
+    public PenfoldServerHealthCheck(final String feedUrl, final HttpClient httpClient)
     {
         this.serverUrl = new UrlUtils().pingUrlFrom(feedUrl);
-        this.client = client;
+        this.httpClient = httpClient;
     }
 
     @Override protected Result check() throws Exception
     {
-        final Response clientResponse = client.target(serverUrl).request(HAL_JSON).get();
+        final HttpGet httpGet = new HttpGet(serverUrl);
+        httpGet.addHeader(HttpHeaders.ACCEPT, HAL_JSON);
 
-        if (clientResponse.getStatus() == HTTP_OK)
+        final HttpResponse clientResponse = httpClient.execute(httpGet);
+
+        final int statusCode = clientResponse.getStatusLine().getStatusCode();
+        if (statusCode == HTTP_OK)
         {
             return healthy("Penfold server ok at %s", serverUrl);
         }
         else
         {
-            return unhealthy("Penfold server not ok at %s with status %s", serverUrl, clientResponse.getStatus());
+            return unhealthy("Penfold server not ok at %s with status %s", serverUrl, statusCode);
         }
     }
 

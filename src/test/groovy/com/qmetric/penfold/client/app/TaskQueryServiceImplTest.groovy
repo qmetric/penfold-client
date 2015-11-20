@@ -1,28 +1,9 @@
 package com.qmetric.penfold.client.app
 
-import com.qmetric.penfold.client.app.commands.filter.EqualsFilter
-import com.qmetric.penfold.client.app.support.Credentials
-import com.qmetric.penfold.client.app.support.LocalDateTimeSource
-import com.qmetric.penfold.client.app.support.ObjectMapperFactory
-import com.qmetric.penfold.client.domain.model.Payload
-import com.qmetric.penfold.client.domain.model.QueueId
-import com.qmetric.penfold.client.domain.model.Task
-import com.qmetric.penfold.client.domain.model.TaskId
-import com.theoryinpractise.halbuilder.api.RepresentationFactory
 import spock.lang.Specification
 
-import javax.ws.rs.client.Client
-import javax.ws.rs.client.Invocation
-import javax.ws.rs.client.WebTarget
-import javax.ws.rs.core.MultivaluedHashMap
-import javax.ws.rs.core.MultivaluedMap
-import javax.ws.rs.core.Response
-import java.time.LocalDateTime
-
-import static com.qmetric.penfold.client.domain.model.TaskStatus.READY
-
 class TaskQueryServiceImplTest extends Specification {
-
+/*
     public static final LocalDateTime created = LocalDateTime.of(2014, 2, 25, 12, 0, 0)
 
     public static final LocalDateTime triggerDate = LocalDateTime.of(2014, 04, 15, 10, 35, 5, 0)
@@ -138,4 +119,5 @@ class TaskQueryServiceImplTest extends Specification {
     {
         new Credentials("user", "pwd")
     }
+    */
 }
