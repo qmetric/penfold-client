@@ -1,28 +1,29 @@
 package com.qmetric.penfold.client.app.support
 
+import org.apache.http.HttpResponse
+import org.apache.http.ProtocolVersion
+import org.apache.http.client.HttpClient
+import org.apache.http.client.methods.HttpUriRequest
+import org.apache.http.message.BasicStatusLine
 import spock.lang.Specification
 
-class PenfoldServerHealthCheckTest extends Specification {
-    /*
-    final client = Mock(Client)
+class PenfoldServerHealthCheckTest extends Specification
+{
+    final client = Mock(HttpClient)
 
-    final response = Mock(Response)
+    final response = Mock(HttpResponse)
 
     final healthCheck = new PenfoldServerHealthCheck("http://host:123/", client)
 
     def setup()
     {
-        final webTarget = Mock(WebTarget)
-        final builder = Mock(Invocation.Builder)
-        client.target("http://host:123/ping") >> webTarget
-        webTarget.request(RepresentationFactory.HAL_JSON) >> builder
-        builder.get() >> response
+        client.execute({ request -> request.getURI().toString() == "http://host:123/ping"} as HttpUriRequest) >> response
     }
 
     def "should know when penfold server is healthy"()
     {
         given:
-        response.getStatus() >> 200
+        mock200Response()
 
         when:
         final result = healthCheck.check()
@@ -34,7 +35,7 @@ class PenfoldServerHealthCheckTest extends Specification {
     def "should know when penfold server is unhealthy"()
     {
         given:
-        response.getStatus() >> 500
+        mock500Response()
 
         when:
         final result = healthCheck.check()
@@ -42,5 +43,14 @@ class PenfoldServerHealthCheckTest extends Specification {
         then:
         !result.isHealthy()
     }
-    */
+
+    def mock200Response()
+    {
+        response.getStatusLine() >> new BasicStatusLine(new ProtocolVersion("HTTP", 1, 1), 200, "OK")
+    }
+
+    def mock500Response()
+    {
+        response.getStatusLine() >> new BasicStatusLine(new ProtocolVersion("HTTP", 1, 1), 500, "Error")
+    }
 }

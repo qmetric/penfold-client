@@ -1,6 +1,5 @@
 package com.qmetric.penfold.client.app
 
-import com.qmetric.penfold.client.app.TaskStoreServiceBuilder
 import spock.lang.Specification
 
 class TaskStoreServiceBuilderTest extends Specification {

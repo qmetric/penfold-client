@@ -3,10 +3,8 @@ package com.qmetric.penfold.client.app
 import com.google.common.base.Charsets
 import com.google.common.io.CharStreams
 import com.google.common.io.Closeables
-import com.qmetric.penfold.client.app.support.Credentials
 import com.qmetric.penfold.client.app.support.ObjectMapperFactory
 import com.qmetric.penfold.client.domain.model.*
-import com.theoryinpractise.halbuilder.api.RepresentationFactory
 import groovy.json.JsonSlurper
 import org.apache.http.HttpEntity
 import org.apache.http.HttpResponse
@@ -44,8 +42,8 @@ class TaskStoreServiceImplTest extends Specification {
     def "should create task"()
     {
         given:
-        def expectedRequest = this.getClass().getResource("/fixtures/api/command/create_task_command.json").text
-        def response = this.getClass().getResource("/fixtures/api/create_task_response.json").text
+        def expectedRequest = getResource("/fixtures/api/command/create_task_command.json")
+        def response = getResource("/fixtures/api/create_task_response.json")
         setupRequestBuilder(expectedRequest, response, 201)
 
         when:
@@ -62,8 +60,8 @@ class TaskStoreServiceImplTest extends Specification {
     def "should create future task"()
     {
         given:
-        def expectedRequest = this.getClass().getResource("/fixtures/api/command/create_future_task_command.json").text
-        def response = this.getClass().getResource("/fixtures/api/create_future_task_response.json").text
+        def expectedRequest = getResource("/fixtures/api/command/create_future_task_command.json")
+        def response = getResource("/fixtures/api/create_future_task_response.json")
         setupRequestBuilder(expectedRequest, response, 201)
 
         when:
@@ -80,11 +78,11 @@ class TaskStoreServiceImplTest extends Specification {
     def "should start task"()
     {
         given:
-        def response = this.getClass().getResource("/fixtures/api/task.json").text
+        def response = getResource("/fixtures/api/task.json")
         setupTaskRetrievalResponse("http://localhost/tasks/1", response)
 
-        def expectedRequest = this.getClass().getResource("/fixtures/api/command/start_task_command.json").text
-        def postResponse = this.getClass().getResource("/fixtures/api/start_task_response.json").text
+        def expectedRequest = getResource("/fixtures/api/command/start_task_command.json")
+        def postResponse = getResource("/fixtures/api/start_task_response.json")
 
         setupTaskCommand("http://localhost/tasks/1/2", expectedRequest, postResponse)
 
@@ -102,81 +100,93 @@ class TaskStoreServiceImplTest extends Specification {
     def "should requeue task"()
     {
         given:
-        def response = this.getClass().getResource("/fixtures/api/task.json").text
+        def response = getResource("/fixtures/api/task.json")
         setupTaskRetrievalResponse("http://localhost/tasks/1", response)
 
-        def expectedRequest = this.getClass().getResource("/fixtures/api/command/start_task_command.json").text
-        def postResponse = this.getClass().getResource("/fixtures/api/requeue_task_response.json").text
+        def expectedRequest = getResource("/fixtures/api/command/requeue_task_command.json")
+        def postResponse = getResource("/fixtures/api/requeue_task_response.json")
         setupTaskCommand("http://localhost/tasks/1/2", expectedRequest, postResponse)
 
         when:
         def requeue = store.requeue(createTask(), Optional.of("reason1"))
 
         then:
-        0 * _._
         requeue != null
-//        1 * builder.post(_ as Entity) >> { entity ->
-//            assertExpectedJson((entity.get(0) as Entity).entity as String, "/fixtures/api/command/requeue_task_command.json")
-//            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.RequeueTask)
-//            postResponse
-//        }
+        requeue.id == new TaskId("1")
+        requeue.version == 2
+        requeue.queue == new QueueId("aggregator")
+        requeue.triggerDate == LocalDateTime.parse("2015-04-15T10:35:05", DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        requeue.status == TaskStatus.READY
+        requeue.payload.getAsMap() == [type:"type1"]
     }
 
     def "should reschedule task"()
     {
         given:
-        setupTaskRetrievalResponse("/fixtures/api/task.json")
-        setupTaskCommand("http://localhost/tasks/1/2")
-        final postResponse = response(200, "/fixtures/api/reschedule_task_response.json")
+        def response = getResource("/fixtures/api/task.json")
+        setupTaskRetrievalResponse("http://localhost/tasks/1", response)
+
+        def expectedRequest = getResource("/fixtures/api/command/reschedule_task_command.json")
+        def postResponse = getResource("/fixtures/api/reschedule_task_response.json")
+        setupTaskCommand("http://localhost/tasks/1/2", expectedRequest, postResponse)
 
         when:
-        store.reschedule(createTask(), triggerDate, Optional.of("reason1"))
+        def reschedule = store.reschedule(createTask(), triggerDate, Optional.of("reason1"))
 
         then:
-        0 * _._
-//        1 * builder.post(_ as Entity) >> { entity ->
-//            assertExpectedJson((entity.get(0) as Entity).getEntity() as String, "/fixtures/api/command/reschedule_task_command.json")
-//            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.RescheduleTask)
-//            postResponse
-//        }
+        reschedule != null
+        reschedule.id == new TaskId("1")
+        reschedule.version == 2
+        reschedule.queue == new QueueId("aggregator")
+        reschedule.triggerDate == LocalDateTime.parse("2015-04-15T10:35:05", DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        reschedule.status == TaskStatus.WAITING
+        reschedule.payload.getAsMap() == [type:"type1"]
     }
 
     def "should close task"()
     {
         given:
-        setupTaskRetrievalResponse("/fixtures/api/task.json")
-        setupTaskCommand("http://localhost/tasks/1/2")
-        final postResponse = response(200, "/fixtures/api/close_task_response.json")
+        def response = getResource("/fixtures/api/task.json")
+        setupTaskRetrievalResponse("http://localhost/tasks/1", response)
+
+        def expectedRequest = getResource("/fixtures/api/command/close_task_command.json")
+        def postResponse = getResource("/fixtures/api/close_task_response.json")
+        setupTaskCommand("http://localhost/tasks/1/2", expectedRequest, postResponse)
 
         when:
-        store.close(createTask(), Optional.of(CloseResultType.success), Optional.of("reason1"))
+        def close = store.close(createTask(), Optional.of(CloseResultType.success), Optional.of("reason1"))
 
         then:
-        0 * _._
-//        1 * builder.post(_ as Entity) >> { entity ->
-//            assertExpectedJson((entity.get(0) as Entity).entity as String, "/fixtures/api/command/close_task_command.json")
-//            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.CloseTask)
-//            postResponse
-//        }
+        close != null
+        close.id == new TaskId("1")
+        close.version == 2
+        close.queue == new QueueId("aggregator")
+        close.triggerDate == LocalDateTime.parse("2015-04-15T10:35:05", DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        close.status == TaskStatus.CLOSED
+        close.payload.getAsMap() == [type:"type1"]
     }
 
     def "should cancel task"()
     {
         given:
-        setupTaskRetrievalResponse("/fixtures/api/task.json")
-        setupTaskCommand("http://localhost/tasks/1/2")
-        final postResponse = response(200, "/fixtures/api/cancel_task_response.json")
+        def response = getResource("/fixtures/api/task.json")
+        setupTaskRetrievalResponse("http://localhost/tasks/1", response)
+
+        def expectedRequest = getResource("/fixtures/api/command/cancel_task_command.json")
+        def postResponse = getResource("/fixtures/api/cancel_task_response.json")
+        setupTaskCommand("http://localhost/tasks/1/2", expectedRequest, postResponse)
 
         when:
-        store.cancel(createTask(), Optional.of("reason1"))
+        def cancel = store.cancel(createTask(), Optional.of("reason1"))
 
         then:
-        0 * _._
-//        1 * builder.post(_ as Entity) >> { entity ->
-//            assertExpectedJson((entity.get(0) as Entity).entity as String, "/fixtures/api/command/cancel_task_command.json")
-//            (entity.get(0) as Entity).mediaType.type == contentType(CommandType.CancelTask)
-//            postResponse
-//        }
+        cancel != null
+        cancel.id == new TaskId("1")
+        cancel.version == 2
+        cancel.queue == new QueueId("aggregator")
+        cancel.triggerDate == LocalDateTime.parse("2015-04-15T10:35:05", DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+        cancel.status == TaskStatus.CANCELLED
+        cancel.payload.getAsMap() == [type:"type1"]
     }
 
     private def setupTaskRetrievalResponse(final String expectedUrl, final String responseJson, final int status = 200)
@@ -219,34 +229,6 @@ class TaskStoreServiceImplTest extends Specification {
         return new JsonSlurper().parseText(expectedJson) == new JsonSlurper().parseText(json as String)
     }
 
-    private void assertExpectedJson(final String json, final String expectedJson)
-    {
-        assert new JsonSlurper().parseText(json as String) == new JsonSlurper().parseText(this.getClass().getResource(expectedJson).text)
-    }
-
-    private def setupRequestBuilder(final String url)
-    {
-        final builder = Mock(Invocation.Builder)
-        final webTarget = Mock(WebTarget)
-        client.target(url) >> webTarget
-        webTarget.request(RepresentationFactory.HAL_JSON) >> builder
-        builder
-    }
-
-    private def response(final statusCode)
-    {
-        final response = Mock(Response)
-        response.getStatus() >> statusCode
-        response
-    }
-
-    private def response(final statusCode, final String jsonPath)
-    {
-        final response = response(statusCode)
-        response.readEntity(String.class) >> this.getClass().getResource(jsonPath).text
-        response
-    }
-
     private def setupTaskCommand(final String expectedUrl, final String expectedRequest, final String responseJson, final int status = 200)
     {
         StringEntity entity = new StringEntity(responseJson)
@@ -261,14 +243,9 @@ class TaskStoreServiceImplTest extends Specification {
         } as HttpUriRequest) >> mockResponse
     }
 
-    private static def contentType(final CommandType commandType)
+    private static String getResource(String name)
     {
-        return "application/json;domain-command=" + commandType.name()
-    }
-
-    private static Credentials credentials()
-    {
-        return new Credentials("user", "pwd")
+        return this.getClass().getResource(name).text
     }
 
     private static Task createTask()

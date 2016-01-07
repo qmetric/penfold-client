@@ -28,16 +28,12 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.List;
@@ -50,8 +46,6 @@ import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 
 public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQueryService
 {
-    private static final Logger LOG = LoggerFactory.getLogger(TaskQueryServiceImpl.class);
-
     private static final String ACCEPT = RepresentationFactory.HAL_JSON;
 
     private static final String RETRIEVE_TASKS_BY_QUEUE_URI_TEMPLATE = "%s/queues/%s/%s";
@@ -137,20 +131,7 @@ public class TaskQueryServiceImpl implements TaskQueryService, PageAwareTaskQuer
 
         if (queryValueAsString.isPresent())
         {
-            queryParams.put("q", encode(queryValueAsString));
-        }
-    }
-
-    private String encode(final Optional<String> queryValueAsString)
-    {
-        try
-        {
-            return URLEncoder.encode(queryValueAsString.get(), "UTF-8");
-        }
-        catch (UnsupportedEncodingException e)
-        {
-            LOG.error("unable to encode query string param", e);
-            throw new RuntimeException(e);
+            queryParams.put("q", queryValueAsString.get());
         }
     }
 

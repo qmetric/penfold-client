@@ -1,9 +1,27 @@
 package com.qmetric.penfold.client.app
 
+import com.qmetric.penfold.client.app.commands.filter.EqualsFilter
+import com.qmetric.penfold.client.app.support.LocalDateTimeSource
+import com.qmetric.penfold.client.app.support.ObjectMapperFactory
+import com.qmetric.penfold.client.domain.model.Payload
+import com.qmetric.penfold.client.domain.model.QueueId
+import com.qmetric.penfold.client.domain.model.Task
+import com.qmetric.penfold.client.domain.model.TaskId
+import org.apache.http.HttpResponse
+import org.apache.http.ProtocolVersion
+import org.apache.http.StatusLine
+import org.apache.http.client.HttpClient
+import org.apache.http.client.methods.HttpUriRequest
+import org.apache.http.entity.StringEntity
+import org.apache.http.message.BasicStatusLine
 import spock.lang.Specification
 
+import java.time.LocalDateTime
+
+import static com.qmetric.penfold.client.domain.model.TaskStatus.READY
+
 class TaskQueryServiceImplTest extends Specification {
-/*
+
     public static final LocalDateTime created = LocalDateTime.of(2014, 2, 25, 12, 0, 0)
 
     public static final LocalDateTime triggerDate = LocalDateTime.of(2014, 04, 15, 10, 35, 5, 0)
@@ -12,13 +30,11 @@ class TaskQueryServiceImplTest extends Specification {
 
     final currentDate = LocalDateTime.of(2014, 9, 1, 12, 0, 0, 0)
 
-    final MultivaluedMap<String, String> queryParams = new MultivaluedHashMap<>()
-
-    final client = Mock(Client)
+    final client = Mock(HttpClient)
 
     final dateTimeSource = Mock(LocalDateTimeSource)
 
-    final queryRepository = new TaskQueryServiceImpl("http://localhost", credentials(), client, ObjectMapperFactory.create())
+    final queryRepository = new TaskQueryServiceImpl("http://localhost", client, ObjectMapperFactory.create())
 
     def setup()
     {
@@ -29,7 +45,7 @@ class TaskQueryServiceImplTest extends Specification {
     {
         given:
         final id = new TaskId("1")
-        setupTasksRetrievalResponse("http://localhost/tasks/1", queryParams, "/fixtures/api/task.json")
+        setupTasksRetrievalResponse("http://localhost/tasks/1", "/fixtures/api/task.json")
 
         when:
         final task = queryRepository.find(id)
@@ -41,7 +57,7 @@ class TaskQueryServiceImplTest extends Specification {
     def "should query tasks by queue"()
     {
         given:
-        setupTasksRetrievalResponse("http://localhost/queues/q1/ready", queryParams, "/fixtures/api/tasks_page.json")
+        setupTasksRetrievalResponse("http://localhost/queues/q1/ready", "/fixtures/api/tasks_page.json")
 
         when:
         final iterator = queryRepository.find(new QueueId("q1"), READY, [])
@@ -54,8 +70,7 @@ class TaskQueryServiceImplTest extends Specification {
     {
         given:
         final filter = EqualsFilter.of("type", "type1")
-        appendQueryParam("%5B%7B%22op%22%3A%22EQ%22%2C%22key%22%3A%22${filter.key}%22%2C%22value%22%3A%22${filter.value}%22%7D%5D")
-        setupTasksRetrievalResponse("http://localhost/queues/q1/ready", queryParams, "/fixtures/api/tasks_page.json")
+        setupTasksRetrievalResponse("http://localhost/queues/q1/ready", "/fixtures/api/tasks_page.json", "%5B%7B%22op%22%3A%22EQ%22%2C%22key%22%3A%22${filter.key}%22%2C%22value%22%3A%22${filter.value}%22%7D%5D")
 
         when:
         final iterator = queryRepository.find(new QueueId("q1"), READY, [filter])
@@ -67,7 +82,7 @@ class TaskQueryServiceImplTest extends Specification {
     def "should retrieve all tasks"()
     {
         given:
-        setupTasksRetrievalResponse("http://localhost/tasks", queryParams, "/fixtures/api/tasks_page.json")
+        setupTasksRetrievalResponse("http://localhost/tasks", "/fixtures/api/tasks_page.json")
 
         when:
         final iterator = queryRepository.find([])
@@ -80,8 +95,7 @@ class TaskQueryServiceImplTest extends Specification {
     {
         given:
         final filter = EqualsFilter.of("type", "type1")
-        appendQueryParam("%5B%7B%22op%22%3A%22EQ%22%2C%22key%22%3A%22${filter.key}%22%2C%22value%22%3A%22${filter.value}%22%7D%5D")
-        setupTasksRetrievalResponse("http://localhost/tasks", queryParams, "/fixtures/api/tasks_page.json")
+        setupTasksRetrievalResponse("http://localhost/tasks", "/fixtures/api/tasks_page.json", "%5B%7B%22op%22%3A%22EQ%22%2C%22key%22%3A%22${filter.key}%22%2C%22value%22%3A%22${filter.value}%22%7D%5D")
 
         when:
         final iterator = queryRepository.find([filter])
@@ -90,34 +104,21 @@ class TaskQueryServiceImplTest extends Specification {
         iterator.toList() == [expectedTask]
     }
 
-    private def setupTasksRetrievalResponse(final String url, final MultivaluedMap<String, String> queryParams, final String expectedJson)
+    private def setupTasksRetrievalResponse(final String expectedUrl, final String responseJsonResource, final String expectedQueryParam = "")
     {
-        final Response response = expectedResponse(expectedJson)
-        final builder = Mock(Invocation.Builder)
-        final webTarget = Mock(WebTarget)
-        final webTargetWithQueryParams = Mock(WebTarget)
-        client.target(url) >> webTarget
-        queryParams.entrySet().each {e -> webTarget.queryParam(e.key, e.value.toArray()) >> webTargetWithQueryParams}
-        (queryParams.isEmpty() ? webTarget: webTargetWithQueryParams).request(RepresentationFactory.HAL_JSON) >> builder
-        builder.get() >> response
+        StringEntity entity = new StringEntity(getResource(responseJsonResource))
+        StatusLine statusLine = new BasicStatusLine(new ProtocolVersion("HTTP", 1, 1), 200, "OK")
+        HttpResponse mockResponse = Mock(HttpResponse)
+        mockResponse.getEntity() >> entity
+        mockResponse.getStatusLine() >> statusLine
+        def expectedUrlWithParams = expectedUrl + "?" + (expectedQueryParam ? "q=" + expectedQueryParam : "")
+
+        client.execute({ request -> request.getURI().toString() == expectedUrlWithParams } as HttpUriRequest) >> mockResponse
     }
 
-    private Response expectedResponse(final String jsonPath)
+    private static String getResource(String name)
     {
-        final response = Mock(Response)
-        response.readEntity(String.class) >> this.getClass().getResource(jsonPath).text
-        response.getStatus() >> 200
-        response
+        return this.getClass().getResource(name).text
     }
 
-    private void appendQueryParam(final String queryStr)
-    {
-        queryParams.add("q", queryStr)
-    }
-
-    def Credentials credentials()
-    {
-        new Credentials("user", "pwd")
-    }
-    */
 }
