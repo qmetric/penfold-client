@@ -5,6 +5,7 @@ import org.apache.http.HttpHeaders;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,16 +37,27 @@ public class PenfoldServerHealthCheck extends HealthCheck
         final HttpGet httpGet = new HttpGet(serverUrl);
         httpGet.addHeader(HttpHeaders.ACCEPT, HAL_JSON);
 
-        final HttpResponse clientResponse = httpClient.execute(httpGet);
+        HttpResponse clientResponse = null;
+        try
+        {
+            clientResponse = httpClient.execute(httpGet);
 
-        final int statusCode = clientResponse.getStatusLine().getStatusCode();
-        if (statusCode == HTTP_OK)
-        {
-            return healthy("Penfold server ok at %s", serverUrl);
+            final int statusCode = clientResponse.getStatusLine().getStatusCode();
+            if (statusCode == HTTP_OK)
+            {
+                return healthy("Penfold server ok at %s", serverUrl);
+            }
+            else
+            {
+                return unhealthy("Penfold server not ok at %s with status %s", serverUrl, statusCode);
+            }
         }
-        else
+        finally
         {
-            return unhealthy("Penfold server not ok at %s with status %s", serverUrl, statusCode);
+            if (clientResponse != null)
+            {
+                EntityUtils.consumeQuietly(clientResponse.getEntity());
+            }
         }
     }
 
