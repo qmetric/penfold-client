@@ -60,6 +60,7 @@ new TaskConsumerBuilder()
     .consumeWith(new ConsumerFunction() {
         @Override public Reply execute(final Task task) {
             // your implementation here
+            // NOTE: any unhandled exception will result in a retry. Catch exceptions if you don't want to retry forever.
         }})
     .build()
     .start();
