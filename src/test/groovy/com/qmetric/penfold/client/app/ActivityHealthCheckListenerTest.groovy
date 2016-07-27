@@ -1,21 +1,26 @@
-package com.qmetric.penfold.client.app.support
+package com.qmetric.penfold.client.app
 
-import com.qmetric.penfold.client.domain.services.Consumer
+import com.qmetric.penfold.client.app.support.LocalDateTimeSource
+import com.qmetric.penfold.client.domain.model.QueueId
+import com.qmetric.penfold.client.domain.model.TaskId
+import com.qmetric.penfold.client.domain.services.events.QueueConsumedEvent
+import com.qmetric.penfold.client.domain.services.events.TaskConsumedEvent
 import spock.lang.Specification
 import spock.lang.Unroll
 
 import java.time.Duration
 import java.time.LocalDateTime
 
-class ConsumerThreadActivityHealthCheckTest extends Specification {
-    final dateTimeSource = Mock(LocalDateTimeSource)
+class ActivityHealthCheckListenerTest extends Specification {
 
-    final consumerDelegate = Mock(Consumer)
+    static final QueueId queueId = new QueueId("q1")
+
+    final dateTimeSource = Mock(LocalDateTimeSource)
 
     def "should be unhealthy if never any activity"()
     {
         given:
-        final healthCheck = new ConsumerThreadActivityHealthCheck(consumerDelegate, dateTimeSource, Duration.ofMinutes(1))
+        final healthCheck = new ActivityHealthCheckListener(dateTimeSource, Duration.ofMinutes(1))
 
         when:
         final result = healthCheck.check()
@@ -27,11 +32,12 @@ class ConsumerThreadActivityHealthCheckTest extends Specification {
     @Unroll def "should evaluate health of consumer using date of last activity"()
     {
         given:
-        final healthCheck = new ConsumerThreadActivityHealthCheck(consumerDelegate, dateTimeSource, interval)
+        final healthCheck = new ActivityHealthCheckListener(dateTimeSource, interval)
         dateTimeSource.now() >>> [lastConsumedDate, currentDate]
+        assert !healthCheck.check().isHealthy()
 
         when:
-        healthCheck.consume()
+        healthCheck.notify(new QueueConsumedEvent(queueId))
 
         then:
         healthCheck.check().isHealthy() == expectedHealthyResult
@@ -48,27 +54,29 @@ class ConsumerThreadActivityHealthCheckTest extends Specification {
     def "should update date of last activity after consuming each task"()
     {
         given:
-        final healthCheck = new ConsumerThreadActivityHealthCheck(consumerDelegate, dateTimeSource, Duration.ofMinutes(1))
-        dateTimeSource.now() >> LocalDateTime.of(2013, 7, 19, 0, 0, 0, 0)
+        final now = LocalDateTime.of(2013, 7, 19, 0, 0, 0, 0)
+        dateTimeSource.now() >> now
+        final healthCheck = new ActivityHealthCheckListener(dateTimeSource, Duration.ofMinutes(1))
+        assert !healthCheck.check().isHealthy()
 
         when:
-        healthCheck.consumeTask(null)
+        healthCheck.notify(new TaskConsumedEvent(new TaskId("t1")))
 
         then:
         healthCheck.check().isHealthy()
     }
 
-    def "should update date of last activity after consuming all tasks"()
+    def "should update date of last activity after consuming queue without any current tasks to consume"()
     {
         given:
-        final healthCheck = new ConsumerThreadActivityHealthCheck(consumerDelegate, dateTimeSource, Duration.ofMinutes(1))
+        final healthCheck = new ActivityHealthCheckListener(dateTimeSource, Duration.ofMinutes(1))
         dateTimeSource.now() >> LocalDateTime.of(2013, 7, 19, 0, 0, 0, 0)
+        assert !healthCheck.check().isHealthy()
 
         when:
-        healthCheck.consume()
+        healthCheck.notify(new QueueConsumedEvent(queueId))
 
         then:
         healthCheck.check().isHealthy()
     }
-
 }

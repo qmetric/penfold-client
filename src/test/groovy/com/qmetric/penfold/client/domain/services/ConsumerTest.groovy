@@ -4,6 +4,7 @@ import com.github.rholder.retry.RetryerBuilder
 import com.qmetric.penfold.client.app.support.LocalDateTimeSource
 import com.qmetric.penfold.client.domain.exceptions.ConflictException
 import com.qmetric.penfold.client.domain.model.*
+import com.qmetric.penfold.client.domain.services.events.*
 import spock.lang.Specification
 
 import java.time.Duration
@@ -12,8 +13,9 @@ import java.time.LocalDateTime
 import static com.github.rholder.retry.StopStrategies.stopAfterAttempt
 import static com.qmetric.penfold.client.domain.model.TaskStatus.*
 import static java.util.Optional.empty
+import static org.apache.commons.collections.CollectionUtils.isNotEmpty
 
-class ConsumerImplTest extends Specification {
+class ConsumerTest extends Specification {
 
     static final queueId = new QueueId("q1")
 
@@ -31,23 +33,29 @@ class ConsumerImplTest extends Specification {
 
     static final startedTask2 = readyTask2.builder().withStatus(STARTED).build()
 
-    final consumerFunction = Mock(ConsumerFunction)
+    final consumerFunction = Stub(ConsumerFunction)
 
-    final taskQueryService = Mock(TaskQueryService)
+    final taskQueryService = Stub(TaskQueryService)
+
+    final dateTimeSource = Stub(LocalDateTimeSource)
 
     final taskStoreService = Mock(TaskStoreService)
 
-    final dateTimeSource = Mock(LocalDateTimeSource)
+    final listener = new EventListenerStub()
 
-    def now = LocalDateTime.now()
+    final notifier = new Notifier(listener)
 
-    final consumer = new ConsumerImpl(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource)
+    final now = LocalDateTime.now()
+
+    final consumer = new Consumer(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource, notifier)
 
     def setup()
     {
         dateTimeSource.now() >> now
         taskStoreService.start(readyTask1) >> startedTask1
         taskStoreService.start(readyTask2) >> startedTask2
+        listener.reset()
+        assert notifier.getListeners().size() == 1
     }
 
     def "should consume tasks successfully"()
@@ -65,6 +73,7 @@ class ConsumerImplTest extends Specification {
         then:
         1 * taskStoreService.close(startedTask1, Optional.of(CloseResultType.success), empty())
         1 * taskStoreService.close(startedTask2, Optional.of(CloseResultType.success), empty())
+        listener.receivedEvents == [new TaskConsumedEvent(readyTask1.id), new TaskConsumedEvent(readyTask2.id), new QueueConsumedEvent(queueId)]
     }
 
     def "should close task on consume failure"()
@@ -82,6 +91,7 @@ class ConsumerImplTest extends Specification {
         then:
         1 * taskStoreService.close(startedTask1, Optional.of(CloseResultType.failure), failureReason)
         1 * taskStoreService.close(startedTask2, Optional.of(CloseResultType.success), empty())
+        listener.receivedEvents == [new TaskConsumedEvent(readyTask1.id), new TaskConsumedEvent(readyTask2.id), new QueueConsumedEvent(queueId)]
     }
 
     def "should reschedule task on consume failure when delayed retry applicable"()
@@ -99,6 +109,7 @@ class ConsumerImplTest extends Specification {
         then:
         1 * taskStoreService.reschedule(startedTask1, now.plusSeconds(retryDelayInSeconds), failureReason)
         1 * taskStoreService.close(startedTask2, Optional.of(CloseResultType.success), empty())
+        listener.receivedEvents == [new TaskConsumedEvent(readyTask1.id), new TaskConsumedEvent(readyTask2.id), new QueueConsumedEvent(queueId)]
     }
 
     def "should ignore tasks where consumer function updates task status"()
@@ -115,12 +126,13 @@ class ConsumerImplTest extends Specification {
         0 * taskStoreService.close(_ as Task, _ as Optional<CloseResultType>, _ as Optional<String>)
         0 * taskStoreService.reschedule(_ as Task, _ as LocalDateTime, _ as Optional<String>)
         0 * taskStoreService.requeue(_ as Task, _ as Optional<String>)
+        listener.receivedEvents == [new TaskConsumedEvent(readyTask1.id), new QueueConsumedEvent(queueId)]
     }
 
     def "should requeue task on consume failure when delayed retry applicable"()
     {
         given:
-        final consumer = new ConsumerImpl(queueId, consumerFunction, empty(), taskQueryService, taskStoreService, dateTimeSource)
+        final consumer = new Consumer(queueId, consumerFunction, empty(), taskQueryService, taskStoreService, dateTimeSource, notifier)
         taskQueryService.find(queueId, READY, []) >> [readyTask1].iterator()
         consumerFunction.execute(startedTask1) >> Reply.retry(failureReason)
         taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
@@ -130,6 +142,7 @@ class ConsumerImplTest extends Specification {
 
         then:
         1 * taskStoreService.requeue(startedTask1, failureReason)
+        listener.receivedEvents == [new TaskConsumedEvent(readyTask1.id), new QueueConsumedEvent(queueId)]
     }
 
     def "should ignore task conflicts"()
@@ -149,13 +162,14 @@ class ConsumerImplTest extends Specification {
         then:
         1 * taskStoreService.close(startedTask1, Optional.of(CloseResultType.success), empty())
         1 * taskStoreService.close(startedTask2, Optional.of(CloseResultType.success), empty())
+        listener.receivedEvents == [new TaskConsumedEvent(readyTask1.id), new TaskConsumedEvent(readyTaskAlreadyStarted.id), new TaskConsumedEvent(readyTask2.id), new QueueConsumedEvent(queueId)]
     }
 
-    def "should retry when attempt to close task fails"()
+    def "should retry when attempt to close a started task fails - after max retries we quit attempt to consume from queue"()
     {
         given:
         final retryBuilder = RetryerBuilder.<Void> newBuilder().retryIfException().withStopStrategy(stopAfterAttempt(2))
-        final consumer = new ConsumerImpl(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource, retryBuilder)
+        final consumer = new Consumer(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource, notifier, retryBuilder)
         taskQueryService.find(queueId, READY, []) >> [readyTask1].iterator()
         consumerFunction.execute(startedTask1) >> Reply.fail(failureReason)
         taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
@@ -165,6 +179,58 @@ class ConsumerImplTest extends Specification {
 
         then:
         2 * taskStoreService.close(startedTask1, Optional.of(CloseResultType.failure), failureReason) >> { throw new RuntimeException() }
+        listener.receivedEvents == []
         thrown(RuntimeException)
+    }
+
+    def "should not notify anything when no listeners configured"()
+    {
+        given:
+        final consumerNoListeners = new Consumer(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource, new Notifier())
+        taskQueryService.find(queueId, READY, []) >> [readyTask1].iterator()
+        consumerFunction.execute(startedTask1) >> Reply.success()
+        taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
+
+        when:
+        consumerNoListeners.consume()
+
+        then:
+        isNotEmpty(notifier.getListeners())
+    }
+
+    def "should notify multiple listeners"()
+    {
+        given:
+        final listener1 = new EventListenerStub()
+        final listener2 = new EventListenerStub()
+        final notifierWithTwoListeners = new Notifier(listener1, listener2)
+        final consumerNoListeners = new Consumer(queueId, consumerFunction, Optional.of(retryDelay), taskQueryService, taskStoreService, dateTimeSource, notifierWithTwoListeners)
+        taskQueryService.find(queueId, READY, []) >> [readyTask1].iterator()
+        consumerFunction.execute(startedTask1) >> Reply.success()
+        taskQueryService.find(startedTask1.id) >> Optional.of(startedTask1)
+
+        when:
+        consumerNoListeners.consume()
+
+        then:
+        notifierWithTwoListeners.getListeners().size() == 2
+        listener1.receivedEvents == [new TaskConsumedEvent(readyTask1.id), new QueueConsumedEvent(queueId)]
+        listener2.receivedEvents == [new TaskConsumedEvent(readyTask1.id), new QueueConsumedEvent(queueId)]
+    }
+
+    private class EventListenerStub implements EventListener
+    {
+        final List<Event> receivedEvents = new ArrayList<>();
+
+        void reset()
+        {
+            receivedEvents.clear()
+        }
+
+        @Override
+        void notify(final Event event)
+        {
+            receivedEvents.add(event)
+        }
     }
 }

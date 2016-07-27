@@ -3,17 +3,16 @@ package com.qmetric.penfold.client.app;
 import com.codahale.metrics.health.HealthCheckRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.qmetric.penfold.client.app.support.ClientFactory;
-import com.qmetric.penfold.client.app.support.ConsumerThreadActivityHealthCheck;
 import com.qmetric.penfold.client.app.support.Credentials;
 import com.qmetric.penfold.client.app.support.LocalDateTimeSource;
 import com.qmetric.penfold.client.app.support.ObjectMapperFactory;
 import com.qmetric.penfold.client.domain.model.QueueId;
-import com.qmetric.penfold.client.domain.services.Consumer;
 import com.qmetric.penfold.client.domain.services.ConsumerFunction;
-import com.qmetric.penfold.client.domain.services.ConsumerImpl;
+import com.qmetric.penfold.client.domain.services.Consumer;
 import com.qmetric.penfold.client.domain.services.TaskConsumer;
 import com.qmetric.penfold.client.domain.services.TaskQueryService;
 import com.qmetric.penfold.client.domain.services.TaskStoreService;
+import com.qmetric.penfold.client.domain.services.events.Notifier;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -136,17 +135,21 @@ public class TaskConsumerBuilder
 
         final LocalDateTimeSource dateTimeSource = new LocalDateTimeSource();
 
-        final Consumer consumer;
+        final Notifier eventNotifier;
+
         if (minimumTimeBetweenConsumingForHealthCheck.isPresent())
         {
-            consumer = new ConsumerThreadActivityHealthCheck(new ConsumerImpl(queue, function, retryDelay, taskQueryService, taskStoreService, dateTimeSource), dateTimeSource, minimumTimeBetweenConsumingForHealthCheck.get());
+            final ActivityHealthCheckListener activityHealthCheck = new ActivityHealthCheckListener(dateTimeSource, minimumTimeBetweenConsumingForHealthCheck.get());
+            healthCheckRegistry.get().register(String.format("%s scheduling consumer", queue.value), activityHealthCheck);
 
-            healthCheckRegistry.get().register(String.format("%s scheduling consumer", queue.value), (ConsumerThreadActivityHealthCheck) consumer);
+            eventNotifier = new Notifier(activityHealthCheck);
         }
         else
         {
-            consumer = new ConsumerImpl(queue, function, retryDelay, taskQueryService, taskStoreService, dateTimeSource);
+            eventNotifier = Notifier.EMPTY;
         }
+
+        final Consumer consumer = new Consumer(queue, function, retryDelay, taskQueryService, taskStoreService, dateTimeSource, eventNotifier);
 
         return new TaskConsumerImpl(consumer, pollingFrequency);
     }
