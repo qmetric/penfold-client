@@ -33,7 +33,7 @@ public class ActivityHealthCheckListener extends HealthCheck implements EventLis
         this.lastConsumed = Optional.empty();
     }
 
-    @Override public void notify(final Event event)
+    @Override public synchronized void notify(final Event event)
     {
         if (EVENTS_OF_INTEREST.contains(event.getType()))
         {
@@ -41,7 +41,7 @@ public class ActivityHealthCheckListener extends HealthCheck implements EventLis
         }
     }
 
-    @Override public HealthCheck.Result check() throws Exception
+    @Override public synchronized HealthCheck.Result check() throws Exception
     {
         return !lastConsumed.isPresent() || durationSinceLastConsumedIsLongerThanTolerableDelay() ? unhealthyResult() : healthyResult();
     }
