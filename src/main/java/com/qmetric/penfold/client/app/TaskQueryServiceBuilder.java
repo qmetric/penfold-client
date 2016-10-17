@@ -54,6 +54,5 @@ public class TaskQueryServiceBuilder
     private void checkValid()
     {
         checkArgument(url != null, "missing url");
-        checkArgument(credentials != null, "missing credentials");
     }
 }
