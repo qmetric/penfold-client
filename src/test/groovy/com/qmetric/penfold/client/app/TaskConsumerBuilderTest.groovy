@@ -61,7 +61,6 @@ class TaskConsumerBuilderTest extends Specification {
         where:
         builder << [
                 new TaskConsumerBuilder().withCredentials("user", "pass").fromQueue("testqueue").consumeWith(consumerFunction),
-                new TaskConsumerBuilder().fromServer("http://localhost").fromQueue("testqueue").consumeWith(consumerFunction),
                 new TaskConsumerBuilder().fromServer("http://localhost").withCredentials("user", "pass").consumeWith(consumerFunction),
                 new TaskConsumerBuilder().fromServer("http://localhost").withCredentials("user", "pass").fromQueue("testqueue")
         ]

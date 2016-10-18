@@ -159,7 +159,6 @@ public class TaskConsumerBuilder
         checkArgument(url != null, "missing url");
         checkArgument(queue != null, "missing queue");
         checkArgument(function != null, "missing function");
-        checkArgument(credentials != null, "missing credentials");
         checkArgument(pollingFrequency != null, "missing polling frequency");
         checkArgument(retryDelay != null, "missing retry delay");
         checkArgument(minimumTimeBetweenConsumingForHealthCheck != null, "missing minimumTimeBetweenConsumingForHealthCheck");
